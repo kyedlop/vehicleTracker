@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoTrack — Suivi Véhicule, Carburant & Dépenses</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --success: #059669;
+      --success-soft: #ecfdf5;
+      --warning: #d97706;
+      --warning-soft: #fffbeb;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Auth Screen */
+    .auth-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .brand-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .auth-title { margin: 0; font-size: 22px; font-weight: 700; }
+    .auth-sub { margin: 4px 0 24px; color: var(--muted); font-size: 14px; }
+
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface-alt); }
+    .btn-soft { background: var(--primary-soft); color: var(--primary); }
+    .btn-danger-soft { background: var(--danger-soft); color: var(--danger); }
+    .btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+    .w-full { width: 100%; }
+
+    .auth-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+
+    .alert {
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .alert-error { background: var(--danger-soft); color: var(--danger); border: 1px solid #fecaca; }
+    .alert-success { background: var(--success-soft); color: var(--success); border: 1px solid #a7f3d0; }
+    .alert-info { background: var(--primary-soft); color: #1e40af; border: 1px solid #bfdbfe; }
+
+    /* Topbar & Navigation */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nav-tab {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .nav-tab:hover { color: var(--text); background: var(--surface-alt); }
+    .nav-tab.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: #bfdbfe;
+    }
+
+    .topbar-right {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sync-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: #334155;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.ok { background: var(--success); }
+    .dot.syncing { background: var(--warning); }
+    .dot.err { background: var(--danger); }
+
+    /* Main Container */
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px 20px 56px;
+    }
+
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .page-title { margin: 0; font-size: 24px; font-weight: 700; }
+    .page-sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-value { font-size: 24px; font-weight: 700; margin: 6px 0 4px; }
+    .kpi-sub { font-size: 12px; color: var(--muted); }
+
+    .card-title { margin: 0 0 14px; font-size: 16px; font-weight: 700; }
+
+    /* Filters & Tables */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .toolbar > * { min-width: 160px; flex: 0 1 auto; }
+    .toolbar input[type="search"] { min-width: 220px; flex: 1 1 220px; }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--surface);
+    }
+
+    th, td {
+      padding: 11px 13px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--surface-alt);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafcff; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .badge-green { background: var(--success-soft); color: var(--success); }
+    .badge-amber { background: var(--warning-soft); color: var(--warning); }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 60;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-title { margin: 0; font-size: 18px; font-weight: 700; }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .muted { color: var(--muted); font-size: 13px; }
+    .code-box {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH SCREEN -->
+  <div id="authScreen" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-badge">AT</div>
+        <div>
+          <h1 class="auth-title">AutoTrack</h1>
+          <div class="muted">Suivi véhicule, carburant &amp; dépenses</div>
+        </div>
+      </div>
+
+      <div id="authAlert" class="alert alert-error hidden"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginUsername">Identifiant</label>
+          <input id="loginUsername" type="text" autocomplete="username" required />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Mot de passe</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary w-full">Se connecter</button>
+          <button type="button" id="showRegisterBtn" class="btn btn-secondary w-full">Créer un compte</button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="hidden">
+        <div class="form-group">
+          <label for="regUsername">Identifiant souhaité</label>
+          <input id="regUsername" type="text" autocomplete="username" required />
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Mot de passe</label>
+          <input id="regPassword" type="password" autocomplete="new-password" required />
+        </div>
+        <div class="form-group">
+          <label for="regPasswordConfirm">Confirmation du mot de passe</label>
+          <input id="regPasswordConfirm" type="password" autocomplete="new-password" required />
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary w-full">Valider la création du compte</button>
+          <button type="button" id="backToLoginBtn" class="btn btn-secondary w-full">Retour à la connexion</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION -->
+  <div id="appScreen" class="hidden">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;">
+            <span class="brand-badge" style="width:32px;height:32px;font-size:13px;border-radius:9px;">AT</span>
+            <span>AutoTrack</span>
+          </div>
+          <nav class="nav-tabs" id="navTabs">
+            <button class="nav-tab active" data-page="dashboard">Tableau de bord</button>
+            <button class="nav-tab" data-page="fuel">Détails Carburant</button>
+            <button class="nav-tab" data-page="expenses">Détails Dépenses</button>
+            <button class="nav-tab" data-page="onedrive">OneDrive Sync</button>
+          </nav>
+        </div>
+
+        <div class="topbar-right">
+          <select id="vehicleSelect" style="width:auto;min-width:190px;padding:7px 10px;font-size:13px;"></select>
+          <div id="syncStatusPill" class="sync-pill" title="État de synchronisation OneDrive">
+            <span id="syncDot" class="dot"></span>
+            <span id="syncStatusText">OneDrive : inactif</span>
+          </div>
+          <span id="currentUserBadge" class="badge"></span>
+          <button id="logoutBtn" class="btn btn-secondary btn-sm">Déconnexion</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- PAGE 1: DASHBOARD -->
+      <section id="page-dashboard" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title" id="dashVehicleTitle">Tableau de bord</h2>
+            <p class="page-sub" id="dashVehicleMeta"></p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button id="openAddVehicleBtn" class="btn btn-secondary btn-sm">+ Véhicule</button>
+            <button id="openAddFuelBtn" class="btn btn-primary btn-sm">+ Plein carburant</button>
+            <button id="openAddExpenseBtn" class="btn btn-soft btn-sm">+ Dépense</button>
+            <button id="exportJsonBtn" class="btn btn-secondary btn-sm">Exporter JSON</button>
+            <button id="importJsonBtn" class="btn btn-secondary btn-sm">Importer JSON</button>
+            <input id="importJsonInput" type="file" accept=".json,application/json" class="hidden" />
+          </div>
+        </div>
+
+        <div class="grid-4" id="dashKpis"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Évolution de la consommation (L/100 km)</h3>
+            <canvas id="dashFuelChart" height="190"></canvas>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Répartition des dépenses par catégorie (€)</h3>
+            <canvas id="dashExpenseChart" height="190"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Estimation de la décote &amp; valeur actuelle</h3>
+          <div id="depreciationSummary" class="form-grid-2"></div>
+        </div>
+      </section>
+
+      <!-- PAGE 2: FUEL DETAILS -->
+      <section id="page-fuel" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Détails Carburant</h2>
+            <p class="page-sub">Historique complet des pleins, consommations et coûts kilométriques</p>
+          </div>
+          <button id="fuelPageAddBtn" class="btn btn-primary btn-sm">+ Ajouter un plein</button>
+        </div>
+
+        <div class="grid-4" id="fuelKpis"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Consommation par plein (L/100 km)</h3>
+            <canvas id="fuelDetailChart" height="190"></canvas>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Prix du litre au fil du temps (€/L)</h3>
+            <canvas id="fuelPriceChart" height="190"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <input id="fuelSearch" type="search" placeholder="Rechercher (station, carburant, note)..." />
+            <select id="fuelTypeFilter">
+              <option value="">Tous carburants</option>
+              <option value="SP98">SP98</option>
+              <option value="SP95-E10">SP95-E10</option>
+              <option value="SP95">SP95</option>
+              <option value="E85">E85</option>
+              <option value="Gazole">Gazole</option>
+            </select>
+            <select id="fuelSort">
+              <option value="date_desc">Date (récent → ancien)</option>
+              <option value="date_asc">Date (ancien → récent)</option>
+              <option value="conso_desc">Conso (élevée → basse)</option>
+              <option value="conso_asc">Conso (basse → élevée)</option>
+              <option value="cost_desc">Montant (élevé → bas)</option>
+            </select>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Kilométrage</th>
+                  <th>Litres</th>
+                  <th>Prix/L</th>
+                  <th>Montant</th>
+                  <th>Conso</th>
+                  <th>Carburant</th>
+                  <th>Station / Note</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="fuelTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE 3: EXPENSES DETAILS -->
+      <section id="page-expenses" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Détails Dépenses</h2>
+            <p class="page-sub">Suivi des frais d'entretien, assurance, péages, stationnement et divers</p>
+          </div>
+          <button id="expensePageAddBtn" class="btn btn-primary btn-sm">+ Ajouter une dépense</button>
+        </div>
+
+        <div class="grid-4" id="expenseKpis"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Dépenses par catégorie (€)</h3>
+            <canvas id="expenseCategoryChart" height="190"></canvas>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Dépenses mensuelles (€)</h3>
+            <canvas id="expenseMonthlyChart" height="190"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <input id="expenseSearch" type="search" placeholder="Rechercher (libellé, lieu, note)..." />
+            <select id="expenseCategoryFilter">
+              <option value="">Toutes catégories</option>
+              <option value="Entretien">Entretien</option>
+              <option value="Assurance">Assurance</option>
+              <option value="Péage">Péage</option>
+              <option value="Stationnement">Stationnement</option>
+              <option value="Pneus">Pneus</option>
+              <option value="Contrôle technique">Contrôle technique</option>
+              <option value="Autre">Autre</option>
+            </select>
+            <select id="expenseSort">
+              <option value="date_desc">Date (récent → ancien)</option>
+              <option value="date_asc">Date (ancien → récent)</option>
+              <option value="amount_desc">Montant (élevé → bas)</option>
+              <option value="amount_asc">Montant (bas → élevé)</option>
+            </select>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Catégorie</th>
+                  <th>Libellé</th>
+                  <th>Kilométrage</th>
+                  <th>Montant</th>
+                  <th>Note</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expenseTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE 4: ONEDRIVE AUTO-SYNC -->
+      <section id="page-onedrive" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Synchronisation automatique OneDrive</h2>
+            <p class="page-sub">Mise à jour automatique du fichier <code>autotrack-data</code> (ou <code>autotrack_data</code>) via Microsoft Graph</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="odConnectBtn" class="btn btn-primary btn-sm">Connecter OneDrive</button>
+            <button id="odDisconnectBtn" class="btn btn-secondary btn-sm">Déconnecter OneDrive</button>
+            <button id="odSyncNowBtn" class="btn btn-soft btn-sm">Synchroniser maintenant</button>
+          </div>
+        </div>
+
+        <div id="odAlert" class="alert alert-info hidden"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Paramètres de connexion OneDrive</h3>
+            <div class="form-group">
+              <label for="odClientId">Application (Client) ID — Microsoft Entra ID / Azure</label>
+              <input id="odClientId" type="text" placeholder="ex: 12345678-1234-1234-1234-1234567890ab" />
+            </div>
+            <div class="form-group">
+              <label for="odFilePath">Chemin du fichier dans OneDrive</label>
+              <input id="odFilePath" type="text" placeholder="/Vehicle Tracker/autotrack-data" />
+              <div class="muted" style="margin-top:4px;">Vous pouvez indiquer <code>/Vehicle Tracker/autotrack-data</code> ou <code>/Vehicle Tracker/autotrack_data</code>.</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+              <label style="margin:0;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                <input id="odAutoSave" type="checkbox" style="width:auto;" checked />
+                <span>Sauvegarde automatique après chaque modification (anti-rebond 1,5 s)</span>
+              </label>
+            </div>
+            <button id="saveOdConfigBtn" class="btn btn-primary btn-sm">Enregistrer la configuration</button>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Configuration rapide Microsoft Entra ID</h3>
+            <p class="muted">Pour autoriser l'accès direct au fichier depuis votre navigateur (PC, iPad, iPhone) sans serveur intermédiaire :</p>
+            <ol class="muted" style="padding-left:18px;margin:8px 0 14px;">
+              <li>Ouvrez le portail <strong>Microsoft Entra ID</strong> &gt; <strong>App registrations</strong> &gt; <strong>New registration</strong>.</li>
+              <li>Ajoutez une plateforme <strong>Single-page application (SPA)</strong> et collez l'URL exacte de votre page :</li>
+            </ol>
+            <div class="code-box" id="currentRedirectUri" style="margin-bottom:12px;"></div>
+            <p class="muted" style="margin:0;">Accordez la permission déléguée <code>Files.ReadWrite</code> (Microsoft Graph), puis copiez l'<strong>Application (client) ID</strong> ci-contre.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modalBackdrop" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="modal-title"></h3>
+        <button id="closeModalBtn" class="btn btn-secondary btn-sm">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "autotrack_v1_state";
+    const OD_CFG_KEY = "autotrack_v1_od_cfg";
+    const OD_TOKEN_KEY = "autotrack_v1_od_token";
+
+    function createSeedData() {
+      const baseDate = new Date("2024-02-17");
+      const fuelLogs = [];
+      let odo = 68200;
+      for (let i = 0; i < 96; i++) {
+        const d = new Date(baseDate.getTime() + i * 7 * 86400000);
+        const dateStr = d.toISOString().slice(0, 10);
+        const dist = 410 + ((i * 29) % 140);
+        odo += dist;
+        const conso = Number((4.35 + ((i * 13) % 14) * 0.08).toFixed(2));
+        const liters = Number(((dist * conso) / 100).toFixed(2));
+        const pricePerLiter = Number((1.72 + ((i * 7) % 19) * 0.015).toFixed(3));
+        const amount = Number((liters * pricePerLiter).toFixed(2));
+        const fuelType = i % 5 === 0 ? "SP95-E10" : "SP98";
+        fuelLogs.push({
+          id: "fuel_" + (i + 1),
+          date: dateStr,
+          odometer: odo,
+          liters,
+          pricePerLiter,
+          amount,
+          consumption: conso,
+          fuelType,
+          station: i % 2 === 0 ? "TotalEnergies" : "Station Reims / Chessy",
+          note: i === 0 ? "Premier plein suivi" : ""
+        });
+      }
+
+      const categories = ["Péage", "Entretien", "Assurance", "Stationnement", "Pneus", "Contrôle technique", "Autre"];
+      const expenses = [];
+      for (let j = 0; j < 67; j++) {
+        const d = new Date(baseDate.getTime() + j * 10 * 86400000);
+        const cat = categories[j % categories.length];
+        const amountMap = {
+          "Péage": 18.4,
+          "Entretien": 185.0,
+          "Assurance": 64.5,
+          "Stationnement": 12.0,
+          "Pneus": 290.0,
+          "Contrôle technique": 79.0,
+          "Autre": 24.0
+        };
+        const amount = Number((amountMap[cat] + ((j * 11) % 15) * 1.3).toFixed(2));
+        expenses.push({
+          id: "exp_" + (j + 1),
+          date: d.toISOString().slice(0, 10),
+          category: cat,
+          label: cat + " #" + (j + 1),
+          odometer: 68200 + j * 620,
+          amount,
+          note: ""
+        });
+      }
+
+      return {
+        activeVehicleId: "veh_kimberly",
+        vehicles: [
+          {
+            id: "veh_kimberly",
+            name: "Kimberly",
+            make: "Toyota",
+            model: "Auris 2 Technoline",
+            year: 2018,
+            fiscalPower: 5,
+            fuelSystem: "Hybride",
+            plate: "EW-903-JP",
+            purchaseDate: "2024-02-17",
+            purchasePrice: 15800,
+            initialOdometer: 68200,
+            annualDepreciationRate: 0.10,
+            fuelLogs,
+            expenses
+          }
+        ]
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { users: {}, sessionUser: null };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      scheduleAutoSyncOneDrive();
+    }
+
+    let appState = loadState();
+    if (!appState.users) appState.users = {};
+
+    function getUserData() {
+      if (!appState.sessionUser) return null;
+      if (!appState.users[appState.sessionUser].data) {
+        appState.users[appState.sessionUser].data = createSeedData();
+      }
+      return appState.users[appState.sessionUser].data;
+    }
+
+    function getActiveVehicle() {
+      const d = getUserData();
+      if (!d || !d.vehicles || !d.vehicles.length) return null;
+      return d.vehicles.find(v => v.id === d.activeVehicleId) || d.vehicles[0];
+    }
+
+    function formatEur(n) {
+      return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(n || 0));
+    }
+
+    function formatNum(n, dec = 1) {
+      return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(Number(n || 0));
+    }
+
+    function computeConsumption(vehicle, logIndexSortedAsc) {
+      const list = vehicle.fuelLogs;
+      const log = list[logIndexSortedAsc];
+      if (log && typeof log.consumption === "number" && log.consumption > 0) return log.consumption;
+      if (logIndexSortedAsc > 0) {
+        const prev = list[logIndexSortedAsc - 1];
+        const dist = Number(log.odometer) - Number(prev.odometer);
+        if (dist > 0 && Number(log.liters) > 0) {
+          return Number(((Number(log.liters) / dist) * 100).toFixed(2));
+        }
+      }
+      return null;
+    }
+
+    function computeDepreciation(vehicle) {
+      const price = Number(vehicle.purchasePrice || 0);
+      const rate = Number(vehicle.annualDepreciationRate ?? 0.10);
+      const pDate = vehicle.purchaseDate ? new Date(vehicle.purchaseDate) : new Date();
+      const now = new Date();
+      const yearsElapsed = Math.max(0, (now - pDate) / (365.25 * 86400000));
+      const estimatedValue = Math.max(0, price * Math.pow(1 - rate, yearsElapsed));
+      const depreciationLoss = Math.max(0, price - estimatedValue);
+      return { price, rate, yearsElapsed, estimatedValue, depreciationLoss };
+    }
+
+    // AUTH LOGIC
+    const authScreen = document.getElementById("authScreen");
+    const appScreen = document.getElementById("appScreen");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+    const showRegisterBtn = document.getElementById("showRegisterBtn");
+    const backToLoginBtn = document.getElementById("backToLoginBtn");
+    const authAlert = document.getElementById("authAlert");
+
+    function showAuthAlert(msg, type = "error") {
+      authAlert.className = "alert alert-" + (type === "success" ? "success" : "error");
+      authAlert.textContent = msg;
+      authAlert.classList.remove("hidden");
+    }
+
+    function hideAuthAlert() {
+      authAlert.classList.add("hidden");
+      authAlert.textContent = "";
+    }
+
+    showRegisterBtn.addEventListener("click", () => {
+      hideAuthAlert();
+      loginForm.classList.add("hidden");
+      registerForm.classList.remove("hidden");
+    });
+
+    backToLoginBtn.addEventListener("click", () => {
+      hideAuthAlert();
+      registerForm.classList.add("hidden");
+      loginForm.classList.remove("hidden");
+    });
+
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      hideAuthAlert();
+      const u = document.getElementById("loginUsername").value.trim();
+      const p = document.getElementById("loginPassword").value;
+      if (!appState.users[u] || appState.users[u].password !== p) {
+        showAuthAlert("Identifiant ou mot de passe incorrect.");
+        return;
+      }
+      appState.sessionUser = u;
+      saveState();
+      enterApp();
+    });
+
+    registerForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      hideAuthAlert();
+      const u = document.getElementById("regUsername").value.trim();
+      const p = document.getElementById("regPassword").value;
+      const pc = document.getElementById("regPasswordConfirm").value;
+      if (!u || !p) {
+        showAuthAlert("Veuillez renseigner un identifiant et un mot de passe.");
+        return;
+      }
+      if (p !== pc) {
+        showAuthAlert("La confirmation du mot de passe ne correspond pas.");
+        return;
+      }
+      if (appState.users[u]) {
+        showAuthAlert("Cet identifiant existe déjà.");
+        return;
+      }
+      appState.users[u] = {
+        password: p,
+        createdAt: new Date().toISOString(),
+        data: createSeedData()
+      };
+      appState.sessionUser = u;
+      saveState();
+      enterApp();
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      appState.sessionUser = null;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      appScreen.classList.add("hidden");
+      authScreen.classList.remove("hidden");
+      loginForm.reset();
+    });
+
+    // NAVIGATION
+    const navTabs = document.querySelectorAll(".nav-tab");
+    const pages = document.querySelectorAll(".page");
+    let currentPage = "dashboard";
+
+    function switchPage(pageName) {
+      currentPage = pageName;
+      navTabs.forEach(t => t.classList.toggle("active", t.dataset.page === pageName));
+      pages.forEach(p => p.classList.toggle("hidden", p.id !== "page-" + pageName));
+      renderAll();
+    }
+
+    navTabs.forEach(tab => {
+      tab.addEventListener("click", () => switchPage(tab.dataset.page));
+    });
+
+    // CHARTS
+    const charts = {};
+    function renderChart(key, canvasId, config) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      if (charts[key]) charts[key].destroy();
+      charts[key] = new Chart(ctx, config);
+    }
+
+    function renderAll() {
+      const userData = getUserData();
+      const vehicle = getActiveVehicle();
+      if (!userData || !vehicle) return;
+
+      document.getElementById("currentUserBadge").textContent = appState.sessionUser;
+
+      const vSelect = document.getElementById("vehicleSelect");
+      vSelect.innerHTML = userData.vehicles.map(v =>
+        `<option value="${v.id}" ${v.id === vehicle.id ? "selected" : ""}>${v.name} (${v.make} ${v.model})</option>`
+      ).join("");
+
+      document.getElementById("dashVehicleTitle").textContent = `${vehicle.name} — ${vehicle.make} ${vehicle.model}`;
+      document.getElementById("dashVehicleMeta").textContent =
+        `${vehicle.year || ""} • ${vehicle.fiscalPower || 0} CV • ${vehicle.fuelSystem || ""} • Immat. ${vehicle.plate || "—"}`;
+
+      const sortedFuelAsc = [...vehicle.fuelLogs].sort((a, b) => a.date.localeCompare(b.date) || a.odometer - b.odometer);
+      const totalLiters = sortedFuelAsc.reduce((s, x) => s + Number(x.liters || 0), 0);
+      const totalFuelCost = sortedFuelAsc.reduce((s, x) => s + Number(x.amount || 0), 0);
+      const consos = sortedFuelAsc.map((x, idx) => computeConsumption({ ...vehicle, fuelLogs: sortedFuelAsc }, idx)).filter(v => v != null && v > 0);
+      const avgConso = consos.length ? consos.reduce((a, b) => a + b, 0) / consos.length : 0;
+
+      const totalExpenses = vehicle.expenses.reduce((s, x) => s + Number(x.amount || 0), 0);
+      const totalAllCosts = totalFuelCost + totalExpenses;
+      const maxOdo = Math.max(Number(vehicle.initialOdometer || 0), ...sortedFuelAsc.map(x => Number(x.odometer || 0)), ...vehicle.expenses.map(x => Number(x.odometer || 0)));
+      const drivenKm = Math.max(0, maxOdo - Number(vehicle.initialOdometer || 0));
+      const costPerKm = drivenKm > 0 ? totalAllCosts / drivenKm : 0;
+      const dep = computeDepreciation(vehicle);
+
+      // Dashboard KPIs
+      document.getElementById("dashKpis").innerHTML = `
+        <div class="card">
+          <div class="kpi-label">Consommation moyenne</div>
+          <div class="kpi-value">${formatNum(avgConso, 2)} L/100</div>
+          <div class="kpi-sub">${sortedFuelAsc.length} pleins • ${formatNum(totalLiters, 1)} L</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Budget carburant</div>
+          <div class="kpi-value">${formatEur(totalFuelCost)}</div>
+          <div class="kpi-sub">Carburant cumulé</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Autres dépenses</div>
+          <div class="kpi-value">${formatEur(totalExpenses)}</div>
+          <div class="kpi-sub">${vehicle.expenses.length} opérations</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Coût total / km</div>
+          <div class="kpi-value">${formatEur(costPerKm)}</div>
+          <div class="kpi-sub">Total : ${formatEur(totalAllCosts)} (${formatNum(drivenKm, 0)} km)</div>
+        </div>
+      `;
+
+      // Depreciation summary
+      document.getElementById("depreciationSummary").innerHTML = `
+        <div><strong>Prix d'achat :</strong> ${formatEur(dep.price)} (${vehicle.purchaseDate || "—"})</div>
+        <div><strong>Valeur estimée actuelle :</strong> ${formatEur(dep.estimatedValue)}</div>
+        <div><strong>Décote estimée :</strong> ${formatEur(dep.depreciationLoss)} (${formatNum(dep.rate * 100, 1)} % / an)</div>
+        <div><strong>Kilométrage relevé :</strong> ${formatNum(maxOdo, 0)} km</div>
+      `;
+
+      // Dashboard Charts
+      const recentFuel = sortedFuelAsc.slice(-24);
+      renderChart("dashFuel", "dashFuelChart", {
+        type: "line",
+        data: {
+          labels: recentFuel.map(x => x.date),
+          datasets: [{
+            label: "L/100 km",
+            data: recentFuel.map((x, i) => computeConsumption({ ...vehicle, fuelLogs: recentFuel }, i)),
+            borderColor: "#2563eb",
+            backgroundColor: "rgba(37,99,235,0.12)",
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const byCat = {};
+      vehicle.expenses.forEach(e => {
+        byCat[e.category || "Autre"] = (byCat[e.category || "Autre"] || 0) + Number(e.amount || 0);
+      });
+      renderChart("dashExp", "dashExpenseChart", {
+        type: "doughnut",
+        data: {
+          labels: Object.keys(byCat),
+          datasets: [{
+            data: Object.values(byCat),
+            backgroundColor: ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#64748b"]
+          }]
+        },
+        options: { responsive: true }
+      });
+
+      renderFuelPage(vehicle, sortedFuelAsc, totalLiters, totalFuelCost, avgConso);
+      renderExpensesPage(vehicle);
+      renderOneDriveSettings();
+    }
+
+    function renderFuelPage(vehicle, sortedFuelAsc, totalLiters, totalFuelCost, avgConso) {
+      const avgPrice = totalLiters > 0 ? totalFuelCost / totalLiters : 0;
+      const minConso = sortedFuelAsc.length
+        ? Math.min(...sortedFuelAsc.map((x, i) => computeConsumption({ ...vehicle, fuelLogs: sortedFuelAsc }, i)).filter(v => v != null && v > 0))
+        : 0;
+
+      document.getElementById("fuelKpis").innerHTML = `
+        <div class="card">
+          <div class="kpi-label">Conso moyenne</div>
+          <div class="kpi-value">${formatNum(avgConso, 2)} L/100</div>
+          <div class="kpi-sub">Meilleure : ${formatNum(minConso || 0, 2)} L/100</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Volume total</div>
+          <div class="kpi-value">${formatNum(totalLiters, 1)} L</div>
+          <div class="kpi-sub">${sortedFuelAsc.length} pleins enregistrés</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Total carburant</div>
+          <div class="kpi-value">${formatEur(totalFuelCost)}</div>
+          <div class="kpi-sub">Moyenne / plein : ${formatEur(sortedFuelAsc.length ? totalFuelCost / sortedFuelAsc.length : 0)}</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Prix moyen / litre</div>
+          <div class="kpi-value">${formatEur(avgPrice)}</div>
+          <div class="kpi-sub">Tous carburants confondus</div>
+        </div>
+      `;
+
+      renderChart("fuelDetail", "fuelDetailChart", {
+        type: "line",
+        data: {
+          labels: sortedFuelAsc.map(x => x.date),
+          datasets: [{
+            label: "Consommation (L/100 km)",
+            data: sortedFuelAsc.map((x, i) => computeConsumption({ ...vehicle, fuelLogs: sortedFuelAsc }, i)),
+            borderColor: "#2563eb",
+            tension: 0.25
+          }]
+        },
+        options: { responsive: true }
+      });
+
+      renderChart("fuelPrice", "fuelPriceChart", {
+        type: "line",
+        data: {
+          labels: sortedFuelAsc.map(x => x.date),
+          datasets: [{
+            label: "Prix du litre (€/L)",
+            data: sortedFuelAsc.map(x => Number(x.pricePerLiter || 0)),
+            borderColor: "#059669",
+            tension: 0.25
+          }]
+        },
+        options: { responsive: true }
+      });
+
+      const q = (document.getElementById("fuelSearch")?.value || "").toLowerCase().trim();
+      const fType = document.getElementById("fuelTypeFilter")?.value || "";
+      const sortMode = document.getElementById("fuelSort")?.value || "date_desc";
+
+      let rows = sortedFuelAsc.map((log, idx) => ({
+        log,
+        conso: computeConsumption({ ...vehicle, fuelLogs: sortedFuelAsc }, idx)
+      }));
+
+      if (fType) rows = rows.filter(r => r.log.fuelType === fType);
+      if (q) {
+        rows = rows.filter(r =>
+          (r.log.station || "").toLowerCase().includes(q) ||
+          (r.log.fuelType || "").toLowerCase().includes(q) ||
+          (r.log.note || "").toLowerCase().includes(q) ||
+          (r.log.date || "").includes(q)
+        );
+      }
+
+      rows.sort((a, b) => {
+        if (sortMode === "date_asc") return a.log.date.localeCompare(b.log.date);
+        if (sortMode === "conso_desc") return (b.conso || 0) - (a.conso || 0);
+        if (sortMode === "conso_asc") return (a.conso || 999) - (b.conso || 999);
+        if (sortMode === "cost_desc") return Number(b.log.amount || 0) - Number(a.log.amount || 0);
+        return b.log.date.localeCompare(a.log.date);
+      });
+
+      document.getElementById("fuelTableBody").innerHTML = rows.map(({ log, conso }) => `
+        <tr>
+          <td>${log.date}</td>
+          <td>${formatNum(log.odometer, 0)} km</td>
+          <td>${formatNum(log.liters, 2)} L</td>
+          <td>${formatEur(log.pricePerLiter)}</td>
+          <td><strong>${formatEur(log.amount)}</strong></td>
+          <td><span class="badge">${conso != null ? formatNum(conso, 2) + " L/100" : "—"}</span></td>
+          <td>${log.fuelType || "—"}</td>
+          <td>${[log.station, log.note].filter(Boolean).join(" — ") || "—"}</td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="editFuel('${log.id}')">Modifier</button>
+            <button class="btn btn-danger-soft btn-sm" onclick="deleteFuel('${log.id}')">Suppr.</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="9" class="muted">Aucun plein trouvé.</td></tr>`;
+    }
+
+    function renderExpensesPage(vehicle) {
+      const exps = [...vehicle.expenses];
+      const total = exps.reduce((s, x) => s + Number(x.amount || 0), 0);
+      const avg = exps.length ? total / exps.length : 0;
+
+      const byCat = {};
+      const byMonth = {};
+      exps.forEach(e => {
+        const c = e.category || "Autre";
+        byCat[c] = (byCat[c] || 0) + Number(e.amount || 0);
+        const m = (e.date || "").slice(0, 7);
+        if (m) byMonth[m] = (byMonth[m] || 0) + Number(e.amount || 0);
+      });
+
+      const topCatEntry = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+
+      document.getElementById("expenseKpis").innerHTML = `
+        <div class="card">
+          <div class="kpi-label">Total dépenses</div>
+          <div class="kpi-value">${formatEur(total)}</div>
+          <div class="kpi-sub">${exps.length} lignes enregistrées</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Dépense moyenne</div>
+          <div class="kpi-value">${formatEur(avg)}</div>
+          <div class="kpi-sub">Par opération</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Poste principal</div>
+          <div class="kpi-value">${topCatEntry ? topCatEntry[0] : "—"}</div>
+          <div class="kpi-sub">${topCatEntry ? formatEur(topCatEntry[1]) : ""}</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Catégories actives</div>
+          <div class="kpi-value">${Object.keys(byCat).length}</div>
+          <div class="kpi-sub">Répartition détaillée</div>
+        </div>
+      `;
+
+      renderChart("expCat", "expenseCategoryChart", {
+        type: "bar",
+        data: {
+          labels: Object.keys(byCat),
+          datasets: [{
+            label: "Montant (€)",
+            data: Object.values(byCat),
+            backgroundColor: "#2563eb"
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const monthsSorted = Object.keys(byMonth).sort();
+      renderChart("expMonth", "expenseMonthlyChart", {
+        type: "bar",
+        data: {
+          labels: monthsSorted,
+          datasets: [{
+            label: "Mensuel (€)",
+            data: monthsSorted.map(m => byMonth[m]),
+            backgroundColor: "#059669"
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const q = (document.getElementById("expenseSearch")?.value || "").toLowerCase().trim();
+      const catFilter = document.getElementById("expenseCategoryFilter")?.value || "";
+      const sortMode = document.getElementById("expenseSort")?.value || "date_desc";
+
+      let rows = exps;
+      if (catFilter) rows = rows.filter(r => r.category === catFilter);
+      if (q) {
+        rows = rows.filter(r =>
+          (r.label || "").toLowerCase().includes(q) ||
+          (r.category || "").toLowerCase().includes(q) ||
+          (r.note || "").toLowerCase().includes(q) ||
+          (r.date || "").includes(q)
+        );
+      }
+
+      rows.sort((a, b) => {
+        if (sortMode === "date_asc") return a.date.localeCompare(b.date);
+        if (sortMode === "amount_desc") return Number(b.amount || 0) - Number(a.amount || 0);
+        if (sortMode === "amount_asc") return Number(a.amount || 0) - Number(b.amount || 0);
+        return b.date.localeCompare(a.date);
+      });
+
+      document.getElementById("expenseTableBody").innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td><span class="badge badge-green">${r.category || "Autre"}</span></td>
+          <td>${r.label || "—"}</td>
+          <td>${r.odometer ? formatNum(r.odometer, 0) + " km" : "—"}</td>
+          <td><strong>${formatEur(r.amount)}</strong></td>
+          <td>${r.note || "—"}</td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="editExpense('${r.id}')">Modifier</button>
+            <button class="btn btn-danger-soft btn-sm" onclick="deleteExpense('${r.id}')">Suppr.</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="7" class="muted">Aucune dépense trouvée.</td></tr>`;
+    }
+
+    // MODALS & CRUD
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalBody = document.getElementById("modalBody");
+    document.getElementById("closeModalBtn").addEventListener("click", () => modalBackdrop.classList.add("hidden"));
+    modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) modalBackdrop.classList.add("hidden"); });
+
+    function openModal(title, html) {
+      modalTitle.textContent = title;
+      modalBody.innerHTML = html;
+      modalBackdrop.classList.remove("hidden");
+    }
+
+    function openVehicleModal() {
+      openModal("Ajouter un véhicule", `
+        <form id="vehicleForm">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Nom / Surnom</label><input name="name" required placeholder="ex: Citadine" /></div>
+            <div class="form-group"><label>Marque</label><input name="make" required placeholder="ex: Toyota" /></div>
+            <div class="form-group"><label>Modèle</label><input name="model" required placeholder="ex: Yaris Cross" /></div>
+            <div class="form-group"><label>Année</label><input name="year" type="number" value="2022" /></div>
+            <div class="form-group"><label>Puissance fiscale (CV)</label><input name="fiscalPower" type="number" value="5" /></div>
+            <div class="form-group"><label>Motorisation</label><input name="fuelSystem" value="Hybride" /></div>
+            <div class="form-group"><label>Immatriculation</label><input name="plate" /></div>
+            <div class="form-group"><label>Prix d'achat (€)</label><input name="purchasePrice" type="number" step="0.01" value="18000" /></div>
+            <div class="form-group"><label>Date d'achat</label><input name="purchaseDate" type="date" value="${new Date().toISOString().slice(0,10)}" /></div>
+            <div class="form-group"><label>Km initial</label><input name="initialOdometer" type="number" value="0" /></div>
+          </div>
+          <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;">Enregistrer le véhicule</button>
+        </form>
+      `);
+      document.getElementById("vehicleForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const d = getUserData();
+        const newV = {
+          id: "veh_" + Date.now(),
+          name: fd.get("name").trim(),
+          make: fd.get("make").trim(),
+          model: fd.get("model").trim(),
+          year: Number(fd.get("year") || 2020),
+          fiscalPower: Number(fd.get("fiscalPower") || 5),
+          fuelSystem: fd.get("fuelSystem").trim(),
+          plate: fd.get("plate").trim(),
+          purchasePrice: Number(fd.get("purchasePrice") || 0),
+          purchaseDate: fd.get("purchaseDate"),
+          initialOdometer: Number(fd.get("initialOdometer") || 0),
+          annualDepreciationRate: 0.10,
+          fuelLogs: [],
+          expenses: []
+        };
+        d.vehicles.push(newV);
+        d.activeVehicleId = newV.id;
+        saveState();
+        modalBackdrop.classList.add("hidden");
+        renderAll();
+      });
+    }
+
+    function openFuelModal(existingId = null) {
+      const vehicle = getActiveVehicle();
+      const existing = existingId ? vehicle.fuelLogs.find(x => x.id === existingId) : null;
+      const today = new Date().toISOString().slice(0, 10);
+      openModal(existing ? "Modifier un plein" : "Ajouter un plein carburant", `
+        <form id="fuelForm">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Date</label><input name="date" type="date" required value="${existing ? existing.date : today}" /></div>
+            <div class="form-group"><label>Kilométrage (km)</label><input name="odometer" type="number" required value="${existing ? existing.odometer : ""}" /></div>
+            <div class="form-group"><label>Litres (L)</label><input name="liters" type="number" step="0.01" required value="${existing ? existing.liters : ""}" /></div>
+            <div class="form-group"><label>Prix / litre (€)</label><input name="pricePerLiter" type="number" step="0.001" required value="${existing ? existing.pricePerLiter : "1.800"}" /></div>
+            <div class="form-group"><label>Montant total (€)</label><input name="amount" type="number" step="0.01" required value="${existing ? existing.amount : ""}" /></div>
+            <div class="form-group"><label>Conso (L/100 km, optionnel)</label><input name="consumption" type="number" step="0.01" value="${existing && existing.consumption != null ? existing.consumption : ""}" /></div>
+            <div class="form-group">
+              <label>Carburant</label>
+              <select name="fuelType">
+                ${["SP98", "SP95-E10", "SP95", "E85", "Gazole"].map(t => `<option value="${t}" ${(existing ? existing.fuelType : "SP98") === t ? "selected" : ""}>${t}</option>`).join("")}
+              </select>
+            </div>
+            <div class="form-group"><label>Station</label><input name="station" value="${existing ? (existing.station || "") : ""}" /></div>
+          </div>
+          <div class="form-group"><label>Note</label><input name="note" value="${existing ? (existing.note || "") : ""}" /></div>
+          <button type="submit" class="btn btn-primary w-full">Enregistrer</button>
+        </form>
+      `);
+
+      const form = document.getElementById("fuelForm");
+      const litInput = form.elements["liters"];
+      const prInput = form.elements["pricePerLiter"];
+      const amtInput = form.elements["amount"];
+      function recalcAmt() {
+        const l = parseFloat(litInput.value);
+        const p = parseFloat(prInput.value);
+        if (!isNaN(l) && !isNaN(p) && l > 0 && p > 0) {
+          amtInput.value = (l * p).toFixed(2);
+        }
+      }
+      litInput.addEventListener("change", recalcAmt);
+      prInput.addEventListener("change", recalcAmt);
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const consoRaw = fd.get("consumption");
+        const entry = {
+          id: existing ? existing.id : "fuel_" + Date.now(),
+          date: fd.get("date"),
+          odometer: Number(fd.get("odometer")),
+          liters: Number(fd.get("liters")),
+          pricePerLiter: Number(fd.get("pricePerLiter")),
+          amount: Number(fd.get("amount")),
+          consumption: consoRaw !== "" ? Number(consoRaw) : null,
+          fuelType: fd.get("fuelType"),
+          station: fd.get("station").trim(),
+          note: fd.get("note").trim()
+        };
+        if (existing) {
+          const idx = vehicle.fuelLogs.findIndex(x => x.id === existing.id);
+          vehicle.fuelLogs[idx] = entry;
+        } else {
+          vehicle.fuelLogs.push(entry);
+        }
+        saveState();
+        modalBackdrop.classList.add("hidden");
+        renderAll();
+      });
+    }
+
+    window.editFuel = (id) => openFuelModal(id);
+    window.deleteFuel = (id) => {
+      const vehicle = getActiveVehicle();
+      vehicle.fuelLogs = vehicle.fuelLogs.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+    };
+
+    function openExpenseModal(existingId = null) {
+      const vehicle = getActiveVehicle();
+      const existing = existingId ? vehicle.expenses.find(x => x.id === existingId) : null;
+      const today = new Date().toISOString().slice(0, 10);
+      openModal(existing ? "Modifier une dépense" : "Ajouter une dépense", `
+        <form id="expenseForm">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Date</label><input name="date" type="date" required value="${existing ? existing.date : today}" /></div>
+            <div class="form-group">
+              <label>Catégorie</label>
+              <select name="category">
+                ${["Entretien", "Assurance", "Péage", "Stationnement", "Pneus", "Contrôle technique", "Autre"].map(c => `<option value="${c}" ${(existing ? existing.category : "Entretien") === c ? "selected" : ""}>${c}</option>`).join("")}
+              </select>
+            </div>
+            <div class="form-group"><label>Libellé</label><input name="label" required value="${existing ? (existing.label || "") : ""}" /></div>
+            <div class="form-group"><label>Montant (€)</label><input name="amount" type="number" step="0.01" required value="${existing ? existing.amount : ""}" /></div>
+            <div class="form-group"><label>Kilométrage (optionnel)</label><input name="odometer" type="number" value="${existing && existing.odometer ? existing.odometer : ""}" /></div>
+            <div class="form-group"><label>Note</label><input name="note" value="${existing ? (existing.note || "") : ""}" /></div>
+          </div>
+          <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;">Enregistrer</button>
+        </form>
+      `);
+
+      document.getElementById("expenseForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const odoRaw = fd.get("odometer");
+        const entry = {
+          id: existing ? existing.id : "exp_" + Date.now(),
+          date: fd.get("date"),
+          category: fd.get("category"),
+          label: fd.get("label").trim(),
+          amount: Number(fd.get("amount")),
+          odometer: odoRaw !== "" ? Number(odoRaw) : null,
+          note: fd.get("note").trim()
+        };
+        if (existing) {
+          const idx = vehicle.expenses.findIndex(x => x.id === existing.id);
+          vehicle.expenses[idx] = entry;
+        } else {
+          vehicle.expenses.push(entry);
+        }
+        saveState();
+        modalBackdrop.classList.add("hidden");
+        renderAll();
+      });
+    }
+
+    window.editExpense = (id) => openExpenseModal(id);
+    window.deleteExpense = (id) => {
+      const vehicle = getActiveVehicle();
+      vehicle.expenses = vehicle.expenses.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+    };
+
+    // EXPORT / IMPORT JSON
+    document.getElementById("exportJsonBtn").addEventListener("click", () => {
+      const d = getUserData();
+      const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "autotrack-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("importJsonBtn").addEventListener("click", () => {
+      document.getElementById("importJsonInput").click();
+    });
+
+    document.getElementById("importJsonInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          const target = parsed.data && parsed.data.vehicles ? parsed.data : parsed;
+          if (!target || !Array.isArray(target.vehicles)) {
+            alert("Format JSON invalide.");
+            return;
+          }
+          appState.users[appState.sessionUser].data = target;
+          saveState();
+          renderAll();
+        } catch (err) {
+          alert("Erreur de lecture JSON : " + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = "";
+    });
+
+    // ONEDRIVE AUTO-SYNC (Microsoft Graph + PKCE)
+    function loadOdCfg() {
+      try {
+        return JSON.parse(localStorage.getItem(OD_CFG_KEY)) || {
+          clientId: "",
+          filePath: "/Vehicle Tracker/autotrack-data",
+          autoSave: true
+        };
+      } catch (e) {
+        return { clientId: "", filePath: "/Vehicle Tracker/autotrack-data", autoSave: true };
+      }
+    }
+
+    let odCfg = loadOdCfg();
+    let odAutoSaveTimer = null;
+
+    function getRedirectUri() {
+      return window.location.origin + window.location.pathname;
+    }
+
+    function renderOneDriveSettings() {
+      document.getElementById("odClientId").value = odCfg.clientId || "";
+      document.getElementById("odFilePath").value = odCfg.filePath || "/Vehicle Tracker/autotrack-data";
+      document.getElementById("odAutoSave").checked = odCfg.autoSave !== false;
+      document.getElementById("currentRedirectUri").textContent = getRedirectUri();
+      updateSyncBadge();
+    }
+
+    function updateSyncBadge(state = null, label = null) {
+      const dot = document.getElementById("syncDot");
+      const txt = document.getElementById("syncStatusText");
+      const tokenObj = getStoredOdToken();
+      if (state && label) {
+        dot.className = "dot " + state;
+        txt.textContent = label;
+        return;
+      }
+      if (tokenObj && Date.now() < tokenObj.expiresAt) {
+        dot.className = "dot ok";
+        txt.textContent = "OneDrive : connecté";
+      } else {
+        dot.className = "dot";
+        txt.textContent = odCfg.clientId ? "OneDrive : déconnecté" : "OneDrive : non configuré";
+      }
+    }
+
+    function getStoredOdToken() {
+      try {
+        return JSON.parse(localStorage.getItem(OD_TOKEN_KEY));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function showOdAlert(msg, type = "info") {
+      const el = document.getElementById("odAlert");
+      el.className = "alert alert-" + (type === "error" ? "error" : type === "success" ? "success" : "info");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    document.getElementById("saveOdConfigBtn").addEventListener("click", () => {
+      odCfg = {
+        clientId: document.getElementById("odClientId").value.trim(),
+        filePath: document.getElementById("odFilePath").value.trim() || "/Vehicle Tracker/autotrack-data",
+        autoSave: document.getElementById("odAutoSave").checked
+      };
+      localStorage.setItem(OD_CFG_KEY, JSON.stringify(odCfg));
+      updateSyncBadge();
+      showOdAlert("Configuration OneDrive enregistrée.", "success");
+    });
+
+    function base64UrlEncode(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      let str = "";
+      for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+      return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    async function createPkcePair() {
+      const verifierBytes = new Uint8Array(32);
+      crypto.getRandomValues(verifierBytes);
+      const verifier = base64UrlEncode(verifierBytes);
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+      const challenge = base64UrlEncode(digest);
+      return { verifier, challenge };
+    }
+
+    document.getElementById("odConnectBtn").addEventListener("click", async () => {
+      const clientId = document.getElementById("odClientId").value.trim() || odCfg.clientId;
+      if (!clientId) {
+        showOdAlert("Veuillez d'abord renseigner votre Application (Client) ID Microsoft Entra ID.", "error");
+        return;
+      }
+      odCfg.clientId = clientId;
+      odCfg.filePath = document.getElementById("odFilePath").value.trim() || odCfg.filePath;
+      localStorage.setItem(OD_CFG_KEY, JSON.stringify(odCfg));
+
+      const { verifier, challenge } = await createPkcePair();
+      sessionStorage.setItem("od_pkce_verifier", verifier);
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: "code",
+        redirect_uri: getRedirectUri(),
+        response_mode: "query",
+        scope: "Files.ReadWrite offline_access",
+        code_challenge: challenge,
+        code_challenge_method: "S256"
+      });
+      window.location.href = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?" + params.toString();
+    });
+
+    document.getElementById("odDisconnectBtn").addEventListener("click", () => {
+      localStorage.removeItem(OD_TOKEN_KEY);
+      updateSyncBadge();
+      showOdAlert("Déconnecté de OneDrive.");
+    });
+
+    async function handleOAuthCallbackIfPresent() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      if (!code) return;
+
+      const verifier = sessionStorage.getItem("od_pkce_verifier");
+      sessionStorage.removeItem("od_pkce_verifier");
+      window.history.replaceState({}, document.title, getRedirectUri());
+
+      if (!verifier || !odCfg.clientId) return;
+
+      const body = new URLSearchParams({
+        client_id: odCfg.clientId,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: getRedirectUri(),
+        code_verifier: verifier
+      });
+
+      try {
+        const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString()
+        });
+        const tok = await res.json();
+        if (tok.access_token) {
+          localStorage.setItem(OD_TOKEN_KEY, JSON.stringify({
+            accessToken: tok.access_token,
+            refreshToken: tok.refresh_token || null,
+            expiresAt: Date.now() + ((tok.expires_in || 3600) - 60) * 1000
+          }));
+          updateSyncBadge("ok", "OneDrive : connecté");
+          if (appState.sessionUser) {
+            await pullFromOneDrive();
+          }
+        }
+      } catch (err) {
+        updateSyncBadge("err", "OneDrive : erreur auth");
+      }
+    }
+
+    async function getValidAccessToken() {
+      let tok = getStoredOdToken();
+      if (!tok) return null;
+      if (Date.now() < tok.expiresAt) return tok.accessToken;
+      if (!tok.refreshToken || !odCfg.clientId) return null;
+
+      const body = new URLSearchParams({
+        client_id: odCfg.clientId,
+        grant_type: "refresh_token",
+        refresh_token: tok.refreshToken
+      });
+      const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString()
+      });
+      const refreshed = await res.json();
+      if (!refreshed.access_token) return null;
+      tok = {
+        accessToken: refreshed.access_token,
+        refreshToken: refreshed.refresh_token || tok.refreshToken,
+        expiresAt: Date.now() + ((refreshed.expires_in || 3600) - 60) * 1000
+      };
+      localStorage.setItem(OD_TOKEN_KEY, JSON.stringify(tok));
+      return tok.accessToken;
+    }
+
+    function getGraphItemUrl() {
+      const cleanPath = (odCfg.filePath || "/Vehicle Tracker/autotrack-data")
+        .trim()
+        .replace(/^\/+/, "")
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+      return `https://graph.microsoft.com/v1.0/me/drive/root:/${cleanPath}:/content`;
+    }
+
+    async function pullFromOneDrive() {
+      const token = await getValidAccessToken();
+      if (!token || !appState.sessionUser) return;
+      updateSyncBadge("syncing", "OneDrive : lecture...");
+      try {
+        const res = await fetch(getGraphItemUrl(), {
+          headers: { Authorization: "Bearer " + token }
+        });
+        if (res.ok) {
+          const remoteData = await res.json();
+          const parsed = remoteData.data && remoteData.data.vehicles ? remoteData.data : remoteData;
+          if (parsed && Array.isArray(parsed.vehicles)) {
+            appState.users[appState.sessionUser].data = parsed;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            renderAll();
+            updateSyncBadge("ok", "OneDrive : à jour");
+            showOdAlert("Données chargées depuis OneDrive.", "success");
+            return;
+          }
+        }
+        updateSyncBadge("ok", "OneDrive : connecté");
+      } catch (e) {
+        updateSyncBadge("err", "OneDrive : erreur");
+      }
+    }
+
+    async function pushToOneDrive() {
+      const token = await getValidAccessToken();
+      const userData = getUserData();
+      if (!token || !userData) return;
+      updateSyncBadge("syncing", "OneDrive : sauvegarde...");
+      try {
+        const res = await fetch(getGraphItemUrl(), {
+          method: "PUT",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(userData, null, 2)
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        updateSyncBadge("ok", "OneDrive : synchronisé");
+      } catch (e) {
+        updateSyncBadge("err", "OneDrive : échec sync");
+      }
+    }
+
+    function scheduleAutoSyncOneDrive() {
+      if (!odCfg || odCfg.autoSave === false) return;
+      const tok = getStoredOdToken();
+      if (!tok || !appState.sessionUser) return;
+      clearTimeout(odAutoSaveTimer);
+      odAutoSaveTimer = setTimeout(() => {
+        pushToOneDrive();
+      }, 1500);
+    }
+
+    document.getElementById("odSyncNowBtn").addEventListener("click", async () => {
+      const tok = await getValidAccessToken();
+      if (!tok) {
+        showOdAlert("Connectez-vous d'abord à OneDrive.", "error");
+        return;
+      }
+      await pushToOneDrive();
+      showOdAlert("Synchronisation OneDrive effectuée.", "success");
+    });
+
+    // EVENTS
+    document.getElementById("vehicleSelect").addEventListener("change", (e) => {
+      const d = getUserData();
+      if (d) {
+        d.activeVehicleId = e.target.value;
+        saveState();
+        renderAll();
+      }
+    });
+
+    document.getElementById("openAddVehicleBtn").addEventListener("click", openVehicleModal);
+    document.getElementById("openAddFuelBtn").addEventListener("click", () => openFuelModal());
+    document.getElementById("fuelPageAddBtn").addEventListener("click", () => openFuelModal());
+    document.getElementById("openAddExpenseBtn").addEventListener("click", () => openExpenseModal());
+    document.getElementById("expensePageAddBtn").addEventListener("click", () => openExpenseModal());
+
+    ["fuelSearch", "fuelTypeFilter", "fuelSort"].forEach(id => {
+      document.getElementById(id)?.addEventListener("input", renderAll);
+      document.getElementById(id)?.addEventListener("change", renderAll);
+    });
+
+    ["expenseSearch", "expenseCategoryFilter", "expenseSort"].forEach(id => {
+      document.getElementById(id)?.addEventListener("input", renderAll);
+      document.getElementById(id)?.addEventListener("change", renderAll);
+    });
+
+    function enterApp() {
+      authScreen.classList.add("hidden");
+      appScreen.classList.remove("hidden");
+      renderAll();
+      if (getStoredOdToken()) {
+        pullFromOneDrive();
+      }
+    }
+
+    (async function init() {
+      renderOneDriveSettings();
+      await handleOAuthCallbackIfPresent();
+      if (appState.sessionUser && appState.users[appState.sessionUser]) {
+        enterApp();
+      }
+    })();
+  </script>
+</body>
+</html>
