@@ -1318,15 +1318,42 @@
       const litInput = form.elements["liters"];
       const prInput = form.elements["pricePerLiter"];
       const amtInput = form.elements["amount"];
-      function recalcAmt() {
+      litInput.step = "0.001";
+      let lastEdited = null;
+
+      function recalcLiters() {
+        const a = parseFloat(amtInput.value);
+        const p = parseFloat(prInput.value);
+        if (!isNaN(a) && !isNaN(p) && a > 0 && p > 0) {
+          litInput.value = (a / p).toFixed(3);
+        }
+      }
+
+      function recalcAmount() {
         const l = parseFloat(litInput.value);
         const p = parseFloat(prInput.value);
         if (!isNaN(l) && !isNaN(p) && l > 0 && p > 0) {
           amtInput.value = (l * p).toFixed(2);
         }
       }
-      litInput.addEventListener("change", recalcAmt);
-      prInput.addEventListener("change", recalcAmt);
+
+      amtInput.addEventListener("input", () => {
+        lastEdited = "amount";
+        recalcLiters();
+      });
+
+      prInput.addEventListener("input", () => {
+        if (lastEdited === "liters") {
+          recalcAmount();
+        } else {
+          recalcLiters();
+        }
+      });
+
+      litInput.addEventListener("input", () => {
+        lastEdited = "liters";
+        recalcAmount();
+      });
 
       form.addEventListener("submit", (e) => {
         e.preventDefault();
