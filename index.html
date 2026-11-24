@@ -393,7 +393,8 @@
       <section id="tab-benefits" class="hidden space-y-5">
         <div id="benefitKpis" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
         <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
-          <h3 class="text-base font-bold text-slate-900 mb-4">💶 Historique des rentrées d'argent</h3>
+          <h3 class="text-base font-bold text-slate-900 mb-1">📈 Évolution de l'écart Bénéfices − Coût</h3>
+          <p id="benefitForecastText" class="text-xs text-slate-500 mb-4">Historique de l'écart et estimation de la date d'équilibre.</p>
           <div class="chart-box" style="height:310px"><canvas id="benefitHistoryChart"></canvas></div>
         </div>
         <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
@@ -3835,8 +3836,36 @@ function renderBenefitsTab() {
   const yearly=Object.keys(yearTotals).sort().map(y=>`<span class="inline-flex rounded-lg px-2 py-1 mb-1" style="background:${color(y)}">${y}: <strong class="ml-1">${fmtEur(yearTotals[y],2)}</strong></span>`).join(' ')||'Aucun bénéfice enregistré';
   document.getElementById('benefitKpis').innerHTML=`<div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"><h3 class="font-bold text-slate-900">💰 Total Bénéfice</h3><div class="mt-2 text-xs">${yearly}</div><div class="mt-2 font-bold text-slate-700">Total : ${fmtEur(benefitTotal,2)}</div></div><div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"><h3 class="font-bold text-slate-900">⚖️ Ecart Bénéfice v/s Coût</h3><div class="mt-3 text-sm">Total Dépenses : <strong>${fmtEur(totalExpenses,2)}</strong></div><div class="text-sm">Total Carburant : <strong>${fmtEur(totalFuel,2)}</strong></div><div class="text-sm">Prix de la voiture : <strong>${fmtEur(carPrice,2)}</strong></div><div class="mt-2 text-sm">Coût : <strong>${fmtEur(cost,2)}</strong></div><div class="mt-3 text-sm">Bénéfices : <strong>${fmtEur(benefitTotal,2)}</strong></div><div class="mt-3 text-lg font-bold" style="color:${diff<0?'#dc2626':'#2563eb'}">Ecart (Bénéfices − Coût) : ${fmtEur(diff,2)}</div></div>`;
   document.getElementById('benefitTableBody').innerHTML=list.length?list.map((x,i)=>`<tr><td class="py-3 px-3">${new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="py-3 px-3">${fmtEur(x.amount,2)}</td><td class="py-3 px-3"><button onclick="deleteBenefit(${v.benefits.indexOf(x)})" class="text-red-600 font-semibold">Supprimer</button></td></tr>`).join(''):`<tr><td colspan="3" class="py-4 text-center text-slate-400">Aucune rentrée d'argent enregistrée.</td></tr>`;
+  // Courbe de l'écart cumulé : bénéfices cumulés moins le coût total actuel.
+  const dailyTotals={};
+  list.forEach(x=>{const d=x.date; if(d) dailyTotals[d]=(dailyTotals[d]||0)+Number(x.amount||0);});
+  const historyDates=Object.keys(dailyTotals).sort();
+  const cumulative=[];
+  let running=0;
+  historyDates.forEach(d=>{running+=dailyTotals[d];cumulative.push(running-cost);});
+  const today=new Date(); today.setHours(0,0,0,0);
+  const firstDate=historyDates.length?new Date(historyDates[0]+'T00:00:00'):null;
+  const elapsedDays=firstDate?Math.max(1,Math.ceil((today-firstDate)/86400000)):0;
+  const dailyRate=elapsedDays>0?benefitTotal/elapsedDays:0;
+  let forecastDate=null;
+  if(diff<0 && dailyRate>0){forecastDate=new Date(today.getTime()+Math.ceil((cost-benefitTotal)/dailyRate)*86400000);}
+  const chartLabels=historyDates.map(d=>new Date(d+'T00:00:00').toLocaleDateString('fr-FR'));
+  const gapData=cumulative.slice();
+  const projectionData=historyDates.map(()=>null);
+  if(forecastDate){
+    chartLabels.push(forecastDate.toLocaleDateString('fr-FR'));
+    gapData.push(null);
+    if(projectionData.length) projectionData[projectionData.length-1]=diff;
+    projectionData.push(0);
+  }
+  const forecastEl=document.getElementById('benefitForecastText');
+  if(forecastEl){forecastEl.textContent=diff>=0?'Le seuil de rentabilité est déjà atteint : les bénéfices couvrent le coût total.':forecastDate?`À rythme moyen constant (${fmtEur(dailyRate*30,2)} par mois), équilibre prévisionnel vers le ${forecastDate.toLocaleDateString('fr-FR')}.`:'Date prévisionnelle indisponible : ajoute des rentrées d’argent pour calculer une tendance.';}
   const ctx=document.getElementById('benefitHistoryChart'); if(charts.benefitHistoryChart)charts.benefitHistoryChart.destroy();
-  charts.benefitHistoryChart=new Chart(ctx,{type:'bar',data:{labels:list.map(x=>new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR')),datasets:[{label:'Rentrée d’argent (€)',data:list.map(x=>Number(x.amount)),backgroundColor:'#60a5fa'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{display:true}}}});
+  charts.benefitHistoryChart=new Chart(ctx,{type:'line',data:{labels:chartLabels,datasets:[
+    {label:'Écart cumulé (Bénéfices − Coût) (€)',data:gapData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.10)',fill:false,tension:0.25,pointRadius:3,spanGaps:false},
+    {label:forecastDate?'Projection jusqu’à l’équilibre':'Projection',data:projectionData,borderColor:'#f59e0b',borderDash:[6,5],borderWidth:2,pointRadius:3,fill:false,tension:0},
+    {label:'Équilibre (0 €)',data:chartLabels.map(()=>0),borderColor:'#64748b',borderDash:[3,5],borderWidth:1.5,pointRadius:0,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},scales:{y:{title:{display:true,text:'Écart (€)'}},x:{ticks:{maxTicksLimit:8}}},plugins:{legend:{display:true,labels:{boxWidth:20}}}}});
 }
 function openBenefitModal(){const v=getActiveVehicle();if(!v)return;document.getElementById('bDate').value=new Date().toISOString().slice(0,10);document.getElementById('bAmount').value='';document.getElementById('benefitModal').classList.remove('hidden');}
 document.getElementById('benefitForm').addEventListener('submit',e=>{e.preventDefault();const v=getActiveVehicle();if(!v)return;if(!Array.isArray(v.benefits))v.benefits=[];v.benefits.push({date:document.getElementById('bDate').value,amount:parseFloat(document.getElementById('bAmount').value)});saveDB(true);closeModal('benefitModal');refreshAllViews();showToast('Bénéfice enregistré.','success');});
