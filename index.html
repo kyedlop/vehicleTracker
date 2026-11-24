@@ -174,6 +174,7 @@
         <button type="button" class="tab-btn active border-b-2 border-blue-600 text-blue-600 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tableau de bord</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="fuel-details" onclick="switchTab('fuel-details')">📈 Pleins & Conso</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="expenses-details" onclick="switchTab('expenses-details')">📉 Dépenses</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="benefits" onclick="switchTab('benefits')">💶 Bénéfices</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="vehicles" onclick="switchTab('vehicles')">🚘 Véhicules</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="backup" onclick="switchTab('backup')">💾 Sauvegarde</button>
       </div>
@@ -385,6 +386,20 @@
               <tbody id="expenseDetailsTableBody" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- ==================== PAGE : BÉNÉFICES ==================== -->
+      <section id="tab-benefits" class="hidden space-y-5">
+        <div id="benefitKpis" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <h3 class="text-base font-bold text-slate-900 mb-4">💶 Historique des rentrées d'argent</h3>
+          <div class="chart-box" style="height:310px"><canvas id="benefitHistoryChart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4"><h3 class="text-base font-bold text-slate-900">📋 Historique des bénéfices</h3>
+          <button type="button" onclick="openBenefitModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold">+ Ajouter une ligne</button></div>
+          <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs sm:text-sm"><thead><tr class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200"><th class="py-3 px-3">Date</th><th class="py-3 px-3">Montant (€)</th><th class="py-3 px-3">Actions</th></tr></thead><tbody id="benefitTableBody" class="divide-y divide-slate-100"></tbody></table></div>
         </div>
       </section>
 
@@ -701,6 +716,9 @@
       </form>
     </div>
   </div>
+
+<!-- Modal bénéfice -->
+  <div id="benefitModal" class="hidden fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[150]"><div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4">Ajouter une rentrée d'argent</h3><form id="benefitForm" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Date</label><input id="bDate" type="date" required class="w-full px-3 py-2 rounded-xl border border-slate-300"></div><div><label class="block text-xs font-semibold mb-1">Montant (€)</label><input id="bAmount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 rounded-xl border border-slate-300"></div><div class="flex justify-end gap-2"><button type="button" onclick="closeModal('benefitModal')" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold">Enregistrer</button></div></form></div></div>
 
 <script>
 // ==================== BASE INITIALE ====================
@@ -2920,6 +2938,7 @@ function refreshAllViews() {
   renderFuelDetailsTab();
   renderExpenseTable();
   renderExpenseDetailsTab();
+  renderBenefitsTab();
   renderVehiclesTab();
 }
 
@@ -3801,6 +3820,25 @@ document.getElementById("changePasswordForm").addEventListener("submit", async (
   }
 });
 
+function renderBenefitsTab() {
+  const v=getActiveVehicle(); if(!v) return; if(!Array.isArray(v.benefits)) v.benefits=[];
+  const list=[...v.benefits].sort((a,b)=>a.date.localeCompare(b.date));
+  const yearTotals={}; list.forEach(x=>{const y=(x.date||'').slice(0,4); if(y)yearTotals[y]=(yearTotals[y]||0)+Number(x.amount||0);});
+  const pastels={"2024":"#dcfce7","2025":"#dbeafe","2026":"#fef3c7","2027":"#fce7f3","2028":"#ede9fe","2029":"#cffafe"};
+  const color=y=>pastels[y]||"#e0f2fe";
+  const benefitTotal=list.reduce((a,x)=>a+Number(x.amount||0),0);
+  const expenseTotal=(v.expenses||[]).reduce((a,x)=>a+Number(x.cost||0),0);
+  const diff=expenseTotal-benefitTotal;
+  const yearly=Object.keys(yearTotals).sort().map(y=>`<span class="inline-flex rounded-lg px-2 py-1 mb-1" style="background:${color(y)}">${y}: <strong class="ml-1">${fmtEur(yearTotals[y],2)}</strong></span>`).join(' ')||'Aucun bénéfice enregistré';
+  document.getElementById('benefitKpis').innerHTML=`<div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"><h3 class="font-bold text-slate-900">💰 Total Bénéfice</h3><div class="mt-2 text-xs">${yearly}</div><div class="mt-2 font-bold text-slate-700">Total : ${fmtEur(benefitTotal,2)}</div></div><div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"><h3 class="font-bold text-slate-900">⚖️ Ecart Bénéfice v/s Dépenses</h3><div class="mt-3 text-sm">Dépenses : <strong>${fmtEur(expenseTotal,2)}</strong></div><div class="text-sm">Bénéfices : <strong>${fmtEur(benefitTotal,2)}</strong></div><div class="mt-3 text-lg font-bold" style="color:${diff<0?'#dc2626':'#2563eb'}">Dépenses − bénéfices : ${fmtEur(diff,2)}</div></div>`;
+  document.getElementById('benefitTableBody').innerHTML=list.length?list.map((x,i)=>`<tr><td class="py-3 px-3">${new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="py-3 px-3">${fmtEur(x.amount,2)}</td><td class="py-3 px-3"><button onclick="deleteBenefit(${v.benefits.indexOf(x)})" class="text-red-600 font-semibold">Supprimer</button></td></tr>`).join(''):`<tr><td colspan="3" class="py-4 text-center text-slate-400">Aucune rentrée d'argent enregistrée.</td></tr>`;
+  const ctx=document.getElementById('benefitHistoryChart'); if(charts.benefitHistoryChart)charts.benefitHistoryChart.destroy();
+  charts.benefitHistoryChart=new Chart(ctx,{type:'bar',data:{labels:list.map(x=>new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR')),datasets:[{label:'Rentrée d’argent (€)',data:list.map(x=>Number(x.amount)),backgroundColor:'#60a5fa'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{display:true}}}});
+}
+function openBenefitModal(){const v=getActiveVehicle();if(!v)return;document.getElementById('bDate').value=new Date().toISOString().slice(0,10);document.getElementById('bAmount').value='';document.getElementById('benefitModal').classList.remove('hidden');}
+document.getElementById('benefitForm').addEventListener('submit',e=>{e.preventDefault();const v=getActiveVehicle();if(!v)return;if(!Array.isArray(v.benefits))v.benefits=[];v.benefits.push({date:document.getElementById('bDate').value,amount:parseFloat(document.getElementById('bAmount').value)});saveDB(true);closeModal('benefitModal');refreshAllViews();showToast('Bénéfice enregistré.','success');});
+async function deleteBenefit(idx){if(!await showConfirmDialog('Supprimer ce bénéfice ?'))return;const v=getActiveVehicle();v.benefits.splice(idx,1);saveDB(true);refreshAllViews();showToast('Bénéfice supprimé.','info');}
+
 // ==================== NAVIGATION & MODALES ====================
 function switchTab(tabName) {
   document.querySelectorAll(".tab-btn").forEach(b => {
@@ -3810,12 +3848,13 @@ function switchTab(tabName) {
     b.classList.toggle("border-transparent", !active);
     b.classList.toggle("text-slate-500", !active);
   });
-  ["dashboard", "fuel-details", "expenses-details", "vehicles", "backup"].forEach(t => {
+  ["dashboard", "fuel-details", "expenses-details", "benefits", "vehicles", "backup"].forEach(t => {
     const el = document.getElementById("tab-" + t);
     if (el) el.classList.toggle("hidden", t !== tabName);
   });
   if (tabName === "fuel-details") renderFuelDetailsTab();
   if (tabName === "expenses-details") renderExpenseDetailsTab();
+  if (tabName === "benefits") renderBenefitsTab();
   if (tabName === "backup") {
     const prefs = getGoogleDrivePrefs();
     const emailInput = document.getElementById("gdriveEmailInput");
