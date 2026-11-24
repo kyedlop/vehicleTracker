@@ -1735,6 +1735,9 @@ function refreshAllViews() {
   emptyState.classList.add("hidden");
 
   const m = computeVehicleMetrics(v);
+  const nextOilChangeFormatted = m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate)
+    ? m.nextOilChangeDate.toLocaleDateString("fr-FR")
+    : "Date non disponible";
   const owner = db.users.find(u => u.id === v.ownerId);
 
   banner.innerHTML = `
