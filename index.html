@@ -1118,8 +1118,10 @@ function toggleGoogleDriveAutoPref() {
 
 async function connectGoogleDriveCloud(silent = false) {
   const prefs = getGoogleDrivePrefs();
-  const clientId = (document.getElementById("googleClientIdInput").value || "").trim() || prefs.clientId;
-  const email = (document.getElementById("gdriveEmailInput").value || "").trim() || prefs.email || "kr15m33r4@gmail.com";
+  const clientInput = document.getElementById("googleClientIdInput");
+  const emailInput = document.getElementById("gdriveEmailInput");
+  const clientId = (clientInput?.value || "").trim() || prefs.clientId;
+  const email = (emailInput?.value || "").trim() || prefs.email || "kr15m33r4@gmail.com";
   prefs.clientId = clientId;
   prefs.email = email;
   saveGoogleDrivePrefs(prefs);
@@ -1128,50 +1130,78 @@ async function connectGoogleDriveCloud(silent = false) {
     showToast("Renseignez votre Client ID OAuth Google Cloud ou liez directement votre fichier autotrack_data.json.", "info");
     return;
   }
+  if (!(window.google?.accounts?.oauth2)) {
+    showToast("Google Identity Services n'est pas chargé. Vérifiez Internet puis rechargez la page.", "error");
+    return;
+  }
 
-  if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+  try {
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: "https://www.googleapis.com/auth/drive.file",
       hint: email,
       callback: async (tokenResp) => {
-        if (tokenResp && tokenResp.access_token) {
+        if (tokenResp?.access_token) {
           googleDriveAccessToken = tokenResp.access_token;
-          document.getElementById("gdriveConnectBtn").classList.add("hidden");
-          document.getElementById("gdriveSyncNowBtn").classList.remove("hidden");
-          document.getElementById("gdriveDisconnectBtn").classList.remove("hidden");
+          googleDriveFolderId = null;
+          document.getElementById("gdriveConnectBtn")?.classList.add("hidden");
+          document.getElementById("gdriveSyncNowBtn")?.classList.remove("hidden");
+          document.getElementById("gdriveDisconnectBtn")?.classList.remove("hidden");
           await syncWithGoogleDriveCloud(true, true);
         } else {
-          if (!silent) showToast("Connexion Google Drive annulée.", "error");
+          const message = tokenResp?.error_description || tokenResp?.error || "Google n'a pas fourni de jeton d'accès.";
+          updateGoogleDriveUIStatus("Connexion requise", "⚠️ " + message, false);
+          if (!silent) showToast("Connexion Google Drive impossible : " + message, "error");
         }
+      },
+      error_callback: (err) => {
+        const message = err?.message || err?.type || "Erreur OAuth Google";
+        updateGoogleDriveUIStatus("Connexion requise", "⚠️ " + message, false);
+        if (!silent) showToast("Connexion Google Drive impossible : " + message, "error");
       }
     });
-    tokenClient.requestAccessToken({ prompt: silent ? "" : "consent", login_hint: email });
-  } else {
-    showToast("Service Google Identity indisponible. Vérifiez votre connexion Internet et rechargez la page ; utilisez aussi un navigateur compatible et évitez d’ouvrir le fichier en mode hors ligne.", "info");
+    tokenClient.requestAccessToken({ prompt: silent ? "none" : "consent", login_hint: email });
+  } catch (err) {
+    updateGoogleDriveUIStatus("Erreur OAuth", "⚠️ " + (err.message || err), false);
+    showToast("Erreur OAuth Google : " + (err.message || err), "error");
   }
+}
+
+async function googleDriveFetch(url, options = {}) {
+  if (!googleDriveAccessToken) throw new Error("Connexion Google Drive expirée. Reconnectez-vous.");
+  const headers = new Headers(options.headers || {});
+  headers.set("Authorization", `Bearer ${googleDriveAccessToken}`);
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    googleDriveAccessToken = null;
+    document.getElementById("gdriveConnectBtn")?.classList.remove("hidden");
+    document.getElementById("gdriveSyncNowBtn")?.classList.add("hidden");
+    document.getElementById("gdriveDisconnectBtn")?.classList.add("hidden");
+    throw new Error("Jeton Google expiré ou révoqué. Cliquez sur « Connecter Google Drive » pour rétablir la connexion.");
+  }
+  if (!response.ok) {
+    let detail = "";
+    try { const errJson = await response.clone().json(); detail = errJson?.error?.message || errJson?.error_description || ""; } catch {}
+    throw new Error(`API Google Drive (HTTP ${response.status})${detail ? " : " + detail : ""}`);
+  }
+  return response;
 }
 
 async function ensureAutoTrackDriveFolder() {
   if (googleDriveFolderId || !googleDriveAccessToken) return googleDriveFolderId;
   const q = encodeURIComponent("name='AutoTrack' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`, {
-    headers: { Authorization: `Bearer ${googleDriveAccessToken}` }
-  });
+  const searchRes = await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&pageSize=100`);
   const searchJson = await searchRes.json();
-  if (searchJson.files && searchJson.files.length > 0) {
+  if (searchJson.files?.length) {
     googleDriveFolderId = searchJson.files[0].id;
     return googleDriveFolderId;
   }
-  const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${googleDriveAccessToken}`,
-      "Content-Type": "application/json"
-    },
+  const createRes = await googleDriveFetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "AutoTrack", mimeType: "application/vnd.google-apps.folder" })
   });
   const createJson = await createRes.json();
+  if (!createJson.id) throw new Error("Google Drive n'a pas retourné l'identifiant du dossier AutoTrack.");
   googleDriveFolderId = createJson.id;
   return googleDriveFolderId;
 }
@@ -1181,19 +1211,14 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
   try {
     const folderId = await ensureAutoTrackDriveFolder();
     const q = encodeURIComponent(`name='autotrack_data.json' and '${folderId}' in parents and trashed=false`);
-    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`, {
-      headers: { Authorization: `Bearer ${googleDriveAccessToken}` }
-    });
+    const listRes = await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&pageSize=100`);
     const listJson = await listRes.json();
-    const existingFile = (listJson.files && listJson.files[0]) ? listJson.files[0] : null;
-    const existingFileId = existingFile ? existingFile.id : null;
-    if (existingFile && existingFile.modifiedTime) driveFileModifiedTime = existingFile.modifiedTime;
+    const existingFile = listJson.files?.[0] || null;
+    const existingFileId = existingFile?.id || null;
+    if (existingFile?.modifiedTime) driveFileModifiedTime = existingFile.modifiedTime;
 
     if (pullFirst && existingFileId) {
-      const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}?alt=media`, {
-        headers: { Authorization: `Bearer ${googleDriveAccessToken}` }
-      });
-      if (!dlRes.ok) throw new Error("Impossible de télécharger le fichier Google Drive (HTTP " + dlRes.status + ").");
+      const dlRes = await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}?alt=media`);
       const remoteData = await dlRes.json();
       const remoteTime = new Date(remoteData.lastUpdated || 0).getTime();
       const localTime = new Date(db.lastUpdated || 0).getTime();
@@ -1206,40 +1231,33 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
         if (currentUser) {
           const refreshedUser = db.users.find(u => u.id === currentUser.id);
           if (refreshedUser) currentUser = refreshedUser;
-          populateVehicleSelector();
-          populateUserSelects();
-          refreshAllViews();
         }
+        populateVehicleSelector();
+        populateUserSelects();
+        refreshAllViews();
       }
     }
 
     const content = JSON.stringify(db, null, 2);
     const nowStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
     if (existingFileId) {
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${googleDriveAccessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: content
+      await googleDriveFetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: content
       });
     } else {
       const form = new FormData();
       form.append("metadata", new Blob([JSON.stringify({ name: "autotrack_data.json", parents: [folderId] })], { type: "application/json" }));
       form.append("file", new Blob([content], { type: "application/json" }));
-      await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${googleDriveAccessToken}` },
-        body: form
-      });
+      await googleDriveFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", { method: "POST", body: form });
     }
     driveFileModifiedTime = new Date().toISOString();
     const email = getGoogleDrivePrefs().email || "kr15m33r4@gmail.com";
     updateGoogleDriveUIStatus(`Drive OK (${nowStr})`, `✅ Sauvegardé sur Google Drive (${email}) à ${nowStr}`, true);
     refreshAllViews();
   } catch (err) {
-    updateGoogleDriveUIStatus("Erreur Drive", "⚠️ Erreur sauvegarde Google Drive : " + err.message, true);
+    updateGoogleDriveUIStatus("Erreur Drive", "⚠️ Erreur sauvegarde Google Drive : " + (err.message || err), false);
+    console.error("AutoTrack Google Drive sync error:", err);
+    showToast("Erreur Google Drive : " + (err.message || err), "error");
   }
 }
 
