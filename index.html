@@ -220,14 +220,14 @@
               <h3 class="text-base font-bold text-slate-900">🛠️ Historique des vidanges et entretiens</h3>
               <span id="oilChangeCount" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700"></span>
             </div>
-            <div class="chart-box overflow-y-auto pr-1">
-              <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <div class="chart-box overflow-y-auto overflow-x-auto pr-1">
+              <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
                 <thead class="sticky top-0 bg-slate-50 z-10">
-                  <tr class="text-slate-500 uppercase text-[11px] border-b border-slate-200">
-                    <th class="py-2.5 px-3">Date</th>
-                    <th class="py-2.5 px-3">Kilométrage</th>
-                    <th class="py-2.5 px-3">Description</th>
-                    <th class="py-2.5 px-3 text-right">Montant (€)</th>
+                  <tr class="text-slate-500 uppercase text-[10px] border-b border-slate-200">
+                    <th class="py-2 px-2">Date</th>
+                    <th class="py-2 px-2">Kilométrage</th>
+                    <th class="py-2 px-2">Description</th>
+                    <th class="py-2 px-2 text-right">Montant (€)</th>
                   </tr>
                 </thead>
                 <tbody id="oilChangeTableBody" class="divide-y divide-slate-100"></tbody>
@@ -1720,7 +1720,7 @@ function refreshAllViews() {
   const owner = db.users.find(u => u.id === v.ownerId);
 
   banner.innerHTML = `
-    <div>
+    <div class="flex-1 min-w-[260px]">
       <div class="flex items-center gap-2.5 flex-wrap">
         <h2 class="text-lg sm:text-xl font-bold text-slate-900">${v.name} — ${v.brand} ${v.model}</h2>
         ${owner ? `<span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">Propriétaire : ${owner.displayName}</span>` : ""}
@@ -1732,15 +1732,21 @@ function refreshAllViews() {
         <span class="bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-xs text-slate-600">🛣️ Compteur : <strong class="text-slate-900">${fmtNum(m.currentOdometer, 0)} km</strong> (+${fmtNum(m.totalKmDriven, 0)} km)</span>
         <span class="bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-xs text-slate-600">⏱️ Possession : <strong class="text-slate-900">${m.yearsOwned} an(s) et ${m.remDays} jr</strong></span>
         <span class="bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs text-emerald-700">💎 Valeur estimée : <strong>${fmtEur(m.currentValue, 2)}</strong></span>
-        <span class="bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-xs text-indigo-700">📏 Coût moyen / km : <strong>${fmtEur(m.costPerKm, 2)} / km</strong></span>
+        <span class="bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs text-blue-700">⛽ Consommation : <strong>${fmtNum(m.avgConso100, 2)} L/100 • ${fmtEur(m.fuelCostPerKm, 2)} / km</strong></span>
         <span class="bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs text-emerald-700">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2)} / jour • ${fmtEur(m.totalCostPerMonth,2)} / mois • ${fmtEur(m.totalCostPerKm,2)} / km</strong></span>
       </div>
     </div>
-    <div class="flex gap-2 flex-wrap">
-      <button type="button" onclick="openFuelModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Plein</button>
-      <button type="button" onclick="openExpenseModal()" class="px-3.5 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Dépense</button>
-      <button type="button" onclick="openBenefitModal()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Bénéfice</button>
-      <button type="button" onclick="openVehicleModal('${v.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition cursor-pointer">✏️ Modifier</button>
+    <div class="flex flex-col items-start lg:items-end gap-2.5 max-w-full">
+      <div class="flex gap-2 flex-wrap">
+        <button type="button" onclick="openFuelModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Plein</button>
+        <button type="button" onclick="openExpenseModal()" class="px-3.5 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Dépense</button>
+        <button type="button" onclick="openBenefitModal()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">+ Bénéfice</button>
+        <button type="button" onclick="openVehicleModal('${v.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition cursor-pointer">✏️ Modifier</button>
+      </div>
+      <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 max-w-md">
+        <div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-700">${nextOilChangeFormatted}</span></div>
+        <div class="text-[11px] text-amber-800 mt-0.5">Dernière à ${fmtNum(m.lastOilChangeOdo, 0)} km • Seuil ${fmtNum(m.targetOilChangeOdo, 0)} km (reste ${fmtNum(m.kmRemainingToOilChange, 0)} km à ~${fmtNum(m.kmPerWeek, 0)} km/sem) ou 1 an (${m.nextOilChangeReason})</div>
+      </div>
     </div>
   `;
 
@@ -1809,10 +1815,6 @@ function refreshAllViews() {
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Entretien</div>
       <div class="text-2xl font-bold text-emerald-600">${fmtEur(totalEntretien, 2)}</div>
       ${renderCatYearLine("", "text-emerald-600", m.expenseCategoriesByYear.Entretien)}
-      <div class="mt-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-        <div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-700">${nextOilChangeFormatted}</span></div>
-        <div class="text-[11px] text-amber-800 mt-0.5">Dernière à ${fmtNum(m.lastOilChangeOdo, 0)} km • Seuil ${fmtNum(m.targetOilChangeOdo, 0)} km (reste ${fmtNum(m.kmRemainingToOilChange, 0)} km à ~${fmtNum(m.kmPerWeek, 0)} km/sem) ou 1 an (${m.nextOilChangeReason})</div>
-      </div>
     </div>
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lavage</div>
@@ -1846,8 +1848,11 @@ function refreshAllViews() {
       const parts = String(e.date || "").split("-");
       const formattedDate = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : "—";
       const odo = Number(e.odometer || 0);
-      const description = String(e.info || e.description || "Entretien / vidange").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return `<tr class="hover:bg-slate-50"><td class="py-2.5 px-3 whitespace-nowrap font-medium text-slate-700">${formattedDate}</td><td class="py-2.5 px-3 whitespace-nowrap">${odo > 0 ? odo.toLocaleString("fr-FR") + " km" : "—"}</td><td class="py-2.5 px-3">${description}</td><td class="py-2.5 px-3 text-right whitespace-nowrap font-semibold">${fmtEur(Number(e.cost || 0), 2)}</td></tr>`;
+      const rawDesc = String(e.info || e.description || "Entretien / vidange");
+      const shortDesc = rawDesc.split("-->")[0].trim();
+      const escapedShort = shortDesc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escapedFull = rawDesc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      return `<tr class="hover:bg-slate-50 whitespace-nowrap" title="${escapedFull}"><td class="py-2 px-2 font-medium text-slate-700">${formattedDate}</td><td class="py-2 px-2">${odo > 0 ? odo.toLocaleString("fr-FR") + " km" : "—"}</td><td class="py-2 px-2 truncate max-w-[230px]" title="${escapedFull}">${escapedShort}</td><td class="py-2 px-2 text-right font-semibold">${fmtEur(Number(e.cost || 0), 2)}</td></tr>`;
     }).join("") : `<tr><td colspan="4" class="py-6 px-3 text-center text-slate-400">Aucune vidange ou entretien enregistré.</td></tr>`;
   }
 
@@ -2172,33 +2177,33 @@ function renderFuelDetailsTab() {
   const seasonsLinesHtml = seasons.map(se => {
     const logs = m.enrichedFuel.filter(x => x.conso100 !== null && x.conso100 > 0 && se.months.includes(new Date(x.date + "T12:00:00").getMonth() + 1));
     const avg = logs.length ? logs.reduce((a, x) => a + x.conso100, 0) / logs.length : null;
-    const valText = avg === null ? "—" : `${fmtNum(avg, 2)} L/100 (${logs.length} plein(s) calculé(s))`;
-    return `<div class="text-xs text-slate-600 flex items-center justify-between gap-2"><span>${se.emoji} ${se.name} :</span> <strong class="text-slate-800">${valText}</strong></div>`;
+    const valText = avg === null ? "—" : `${fmtNum(avg, 2)} L/100 (${logs.length} plein${logs.length > 1 ? "s" : ""})`;
+    return `<div class="text-[11px] text-slate-600 flex items-center justify-between gap-1 whitespace-nowrap"><span class="inline-flex items-center gap-1"><span class="w-4 text-center">${se.emoji}</span><span>${se.name}</span></span><span class="text-slate-800 tabular-nums">${valText}</span></div>`;
   }).join("");
 
   document.getElementById("fuelDetailsKpis").innerHTML = `
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Conso Moyenne</div>
       <div class="text-2xl font-bold text-blue-600">${fmtNum(m.avgConso100, 2)} L/100</div>
-      <div class="text-xs text-slate-500 mt-1">Sur ${m.enrichedFuel.filter(x => x.conso100 !== null).length} pleins calculés</div>
+      <div class="text-xs text-slate-500 mt-1">Sur ${m.enrichedFuel.filter(x => x.conso100 !== null).length} pleins</div>
       <div class="mt-2 pt-2 border-t border-slate-100 space-y-1">
         ${seasonsLinesHtml}
       </div>
-      <div class="text-xs text-slate-600 mt-2 pt-1.5 border-t border-slate-100">Tendance (3 derniers mois) : <strong class="text-amber-600">${fmtNum(trendConso3M, 2)} L/100 km</strong></div>
+      <div class="text-xs text-slate-600 mt-2 pt-1.5 border-t border-slate-100">3 derniers mois : <strong class="text-amber-600">${fmtNum(trendConso3M, 2)} L/100 km</strong></div>
     </div>
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût Moyen au Litre</div>
       <div class="text-2xl font-bold text-slate-900">${fmtNum(avgPriceLiter, 2)} €/L</div>
       <div class="text-xs text-slate-500 mt-1.5">Min : ${fmtNum(m.minPriceLiter, 2)} € • Max : ${fmtNum(m.maxPriceLiter, 2)} €</div>
       <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">
-        Prix tendance (3 derniers mois) : <strong class="text-amber-600">${fmtEur(trendPrice3M, 2)}/L</strong>
+        3 derniers mois : <strong class="text-amber-600">${fmtEur(trendPrice3M, 2)}/L</strong>
       </div>
     </div>
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût Moyen aux 100 km</div>
       <div class="text-2xl font-bold text-slate-900">${fmtEur(avgCost100, 2)} / 100km</div>
       <div class="text-xs text-slate-500 mt-1.5">Soit ${fmtEur(m.fuelCostPerKm, 2)} / km réel</div>
-      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">Tendance (3 derniers mois) : <strong class="text-amber-600">${fmtEur(trendCost100, 2)} / 100 km</strong></div>
+      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">3 derniers mois : <strong class="text-amber-600">${fmtEur(trendCost100, 2)} / 100 km</strong></div>
     </div>
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Volume & Budget Total Carburant</div>
@@ -2781,7 +2786,6 @@ function renderBenefitsTab() {
 
       <div class="p-3.5 rounded-xl border ${balanceCardStyle} flex items-center justify-between">
         <div>
-          <div class="text-[11px] font-bold uppercase tracking-wider opacity-80">Ecart (Bénéfices − Coût)</div>
           <div class="text-[11px] opacity-75">${isPositive ? 'Seuil de rentabilité dépassé' : 'Reste à amortir'}</div>
         </div>
         <div class="text-xl font-extrabold ${balanceValueColor}">${fmtEur(diff, 2)}</div>
