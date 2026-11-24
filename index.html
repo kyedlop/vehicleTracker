@@ -162,7 +162,7 @@
           </button>
           <button type="button" onclick="logout()" title="Déconnexion" aria-label="Déconnexion"
             class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-            <span aria-hidden="true">🚪</span>
+            <span aria-hidden="true">🚪</span> Déconnexion
           </button>
         </div>
       </div>
@@ -2350,7 +2350,7 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
     driveFileModifiedTime = new Date().toISOString();
     const email = getGoogleDrivePrefs().email || "kr15m33r4@gmail.com";
     updateGoogleDriveUIStatus(`Drive OK (${nowStr})`, `✅ Sauvegardé sur Google Drive (${email}) à ${nowStr}`, true);
-    refreshVehicleBanner();
+    refreshAllViews();
   } catch (err) {
     updateGoogleDriveUIStatus("Erreur Drive", "⚠️ Erreur sauvegarde Google Drive : " + err.message, true);
   }
@@ -3222,12 +3222,7 @@ function renderFuelDetailsTab() {
       <div class="text-xs text-slate-500 mt-1.5">Sur ${m.enrichedFuel.filter(x => x.conso100 !== null).length} pleins calculés</div>
       <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">Tendance (3 derniers mois) : <strong class="text-amber-600">${fmtNum(trendConso3M, 2)} L/100 km</strong></div>
     </div>
-    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">Consommation moyenne par saison</div>
-      <div class="grid grid-cols-2 gap-3">
-        ${(()=>{const seasons=[{name:"Hiver",emoji:"❄️",months:[12,1,2]},{name:"Printemps",emoji:"🌸",months:[3,4,5]},{name:"Été",emoji:"☀️",months:[6,7,8]},{name:"Automne",emoji:"🍂",months:[9,10,11]}];return seasons.map(se=>{const logs=m.enrichedFuel.filter(x=>x.conso100!==null&&x.conso100>0&&se.months.includes(new Date(x.date+"T12:00:00").getMonth()+1));const avg=logs.length?logs.reduce((a,x)=>a+x.conso100,0)/logs.length:null;return `<div class="rounded-xl bg-slate-50 p-3"><div class="text-sm font-semibold text-slate-700">${se.emoji} ${se.name}</div><div class="text-xl font-bold ${avg===null?'text-slate-400':'text-blue-600'}">${avg===null?'—':fmtNum(avg,2)+' L/100'}</div><div class="text-[11px] text-slate-500">${logs.length} plein(s)</div></div>`}).join('')})()}
-      </div>
-    </div>
+    ${(()=>{const seasons=[{name:"Hiver",emoji:"❄️",months:[12,1,2]},{name:"Printemps",emoji:"🌸",months:[3,4,5]},{name:"Été",emoji:"☀️",months:[6,7,8]},{name:"Automne",emoji:"🍂",months:[9,10,11]}];return seasons.map(se=>{const logs=m.enrichedFuel.filter(x=>x.conso100!==null&&x.conso100>0&&se.months.includes(new Date(x.date+"T12:00:00").getMonth()+1));const avg=logs.length?logs.reduce((a,x)=>a+x.conso100,0)/logs.length:null;return `<div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"><div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">${se.emoji} ${se.name}</div><div class="text-2xl font-bold ${avg===null?'text-slate-400':'text-blue-600'}">${avg===null?'—':fmtNum(avg,2)+' L/100'}</div><div class="text-xs text-slate-500 mt-1.5">${logs.length} plein(s) calculé(s)</div></div>`}).join('')})()}
     <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
       <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût Moyen au Litre</div>
       <div class="text-2xl font-bold text-slate-900">${fmtNum(avgPriceLiter, 2)} €/L</div>
@@ -3474,7 +3469,7 @@ function renderExpenseDetailsTab() {
   const topCatShare = (sortedCats[0] && m.totalExpenses > 0) ? (sortedCats[0][1] / m.totalExpenses) * 100 : 0;
 
   const yearlyPastels = {"2024":"#dcfce7", "2025":"#dbeafe", "2026":"#fef3c7", "2027":"#fce7f3", "2028":"#ede9fe", "2029":"#cffafe"};
-  const yearTag = (data) => Object.keys(data || {}).sort().map(y => `<span class="inline-flex rounded-lg px-2 py-1 mb-1" style="background:${yearlyPastels[y] || "#e0f2fe"}">${y}: <strong class="ml-1">${fmtEur(data[y], 2)}</strong></span>`).join(" ") || "Aucune dépense";
+  const yearTag = (data) => Object.keys(data || {}).sort().map(y => `<span class="flex justify-center rounded-lg px-2 py-1" style="background:${yearlyPastels[y] || "#e0f2fe"}">${y}: <strong class="ml-1">${fmtEur(data[y], 2)}</strong></span>`).join("") ? `<div class="grid grid-cols-3 gap-2 mt-2">${Object.keys(data || {}).sort().map(y => `<span class="flex justify-center rounded-lg px-2 py-1 text-xs whitespace-nowrap" style="background:${yearlyPastels[y] || "#e0f2fe"}">${y}: <strong class="ml-1">${fmtEur(data[y], 2)}</strong></span>`).join("")}</div>` : "Aucune dépense";
   const expenseYearData = m.expenseCategoriesByYear || {};
   const expenseTotalByCategory = cat => Object.values(expenseYearData[cat] || {}).reduce((a,b)=>a+b,0);
   document.getElementById("expenseDetailsKpis").innerHTML = `
