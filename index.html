@@ -297,6 +297,21 @@
       <section id="tab-expenses-details" class="hidden space-y-5">
         <div id="expenseDetailsKpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
 
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <h3 class="text-base font-bold text-slate-900">🛠️ Historique des vidanges et entretiens</h3>
+            <span id="oilChangeCount" class="text-xs text-slate-500"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead><tr class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200">
+                <th class="py-3 px-3">Date</th><th class="py-3 px-3">Kilométrage (km)</th><th class="py-3 px-3">Description de l'entretien</th><th class="py-3 px-3 text-right">Montant (€)</th>
+              </tr></thead>
+              <tbody id="oilChangeTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
             <h3 class="text-base font-bold text-slate-900 mb-4">🧩 Répartition par Catégorie (€)</h3>
@@ -3482,6 +3497,20 @@ function renderExpenseDetailsTab() {
   const exps = m.enrichedExp.map(e => ({ ...e, category: e.category || categorizeExpense(e.info) }));
 
   const count = exps.length;
+  const oilChanges = exps.filter(e => {
+    const description = String(e.info || e.description || "").toLowerCase();
+    return /vidange|entretien/.test(description) || String(e.category || "").toLowerCase() === "entretien";
+  }).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const oilBody = document.getElementById("oilChangeTableBody");
+  const oilCount = document.getElementById("oilChangeCount");
+  if (oilCount) oilCount.textContent = `${oilChanges.length} entretien(s)`;
+  if (oilBody) oilBody.innerHTML = oilChanges.length ? oilChanges.map(e => {
+    const parts = String(e.date || "").split("-");
+    const formattedDate = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : "—";
+    const odo = Number(e.odometer || 0);
+    const description = String(e.info || e.description || "Entretien / vidange").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<tr class="hover:bg-slate-50"><td class="py-3 px-3 whitespace-nowrap font-medium text-slate-700">${formattedDate}</td><td class="py-3 px-3 whitespace-nowrap">${odo > 0 ? odo.toLocaleString("fr-FR") : "—"}</td><td class="py-3 px-3 min-w-[220px]">${description}</td><td class="py-3 px-3 text-right whitespace-nowrap font-semibold">${fmtEur(Number(e.cost || 0), 2)}</td></tr>`;
+  }).join("") : `<tr><td colspan="4" class="py-6 px-3 text-center text-slate-400">Aucune vidange ou entretien enregistré.</td></tr>`;
   const avgExp = count > 0 ? m.totalExpenses / count : 0;
   const maxExp = count > 0 ? Math.max(...exps.map(e => e.cost)) : 0;
   const maxExpItem = exps.find(e => e.cost === maxExp);
