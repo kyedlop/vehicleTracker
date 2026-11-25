@@ -1306,7 +1306,7 @@ function toggleAuthMode(mode) {
   }
 }
 
-document.getElementById("registerForm").addEventListener("submit", async (e) => {
+document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const rawName = document.getElementById("regUser").value.trim();
   const pass = document.getElementById("regPass").value;
@@ -1353,7 +1353,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   initAppAfterLogin();
 });
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const username = document.getElementById("loginUser").value.trim().toLowerCase();
   const pass = document.getElementById("loginPass").value;
@@ -1436,7 +1436,7 @@ function populateVehicleSelector() {
   sel.innerHTML = db.vehicles.map(v => `<option value="${v.id}" ${v.id === activeVehicleId ? "selected" : ""}>🚘 ${v.name}</option>`).join("");
 }
 
-document.getElementById("vehicleSelect").addEventListener("change", (e) => {
+document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
   activeVehicleId = e.target.value;
   refreshAllViews();
 });
@@ -1965,10 +1965,10 @@ function updateFuelLiveCalc() {
   banner.textContent = `Saisissez le coût total et le prix au ${unitLabel} : la quantité et la consommation (${unit}/100 km) s'affichent automatiquement.`;
 }
 ["fCost", "fPricePerLiter", "fOdo"].forEach(id => {
-  document.getElementById(id).addEventListener("input", updateFuelLiveCalc);
+  document.getElementById(id)?.addEventListener("input", updateFuelLiveCalc);
 });
 
-document.getElementById("fuelForm").addEventListener("submit", (e) => {
+document.getElementById("fuelForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const v = getActiveVehicle();
   const idx = parseInt(document.getElementById("fuelEditIndex").value, 10);
@@ -2269,7 +2269,7 @@ function openExpenseModal(index = -1) {
   document.getElementById("expenseModal").classList.remove("hidden");
 }
 
-document.getElementById("expenseForm").addEventListener("submit", (e) => {
+document.getElementById("expenseForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const v = getActiveVehicle();
   const idx = parseInt(document.getElementById("expenseEditIndex").value, 10);
@@ -2490,7 +2490,7 @@ function openVehicleModal(vehicleId = "") {
   document.getElementById("vehicleModal").classList.remove("hidden");
 }
 
-document.getElementById("vehicleForm").addEventListener("submit", (e) => {
+document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const editId = document.getElementById("vEditId").value;
   const payload = {
@@ -2594,8 +2594,8 @@ function handleJSONImport(file) {
   reader.readAsText(file);
 }
 
-document.getElementById("loginImportFile").addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
-document.getElementById("syncImportFile").addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
+document.getElementById("loginImportFile")?.addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
+document.getElementById("syncImportFile")?.addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
 
 // ==================== ONGLET BÉNÉFICES ====================
 function renderBenefitsTab() {
@@ -2724,7 +2724,7 @@ function renderBenefitsTab() {
 }
 
 function openBenefitModal() { const v = getActiveVehicle(); if (!v) return; document.getElementById('bDate').value = new Date().toISOString().slice(0, 10); document.getElementById('bAmount').value = ''; document.getElementById('benefitModal').classList.remove('hidden'); }
-document.getElementById('benefitForm').addEventListener('submit', e => { e.preventDefault(); const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = []; v.benefits.push({ date: document.getElementById('bDate').value, amount: parseFloat(document.getElementById('bAmount').value) }); saveDB(true); closeModal('benefitModal'); refreshAllViews(); showToast('Bénéfice enregistré.', 'success'); });
+document.getElementById('benefitForm')?.addEventListener('submit', e => { e.preventDefault(); const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = []; v.benefits.push({ date: document.getElementById('bDate').value, amount: parseFloat(document.getElementById('bAmount').value) }); saveDB(true); closeModal('benefitModal'); refreshAllViews(); showToast('Bénéfice enregistré.', 'success'); });
 async function deleteBenefit(idx) { if (!await showConfirmDialog('Supprimer ce bénéfice ?')) return; const v = getActiveVehicle(); v.benefits.splice(idx, 1); saveDB(true); refreshAllViews(); showToast('Bénéfice supprimé.', 'info'); }
 
 // ==================== NAVIGATION & MODALES ====================
