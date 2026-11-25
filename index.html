@@ -2793,9 +2793,24 @@ async function uploadAutoTrackData() {
   }
 }
 async function autoTrackGoogleLogin() {
-  if (!supabaseClient) return;
-  const {error}=await supabaseClient.auth.signInWithOAuth({provider:"google", options:{redirectTo:window.location.href.split("#")[0]}});
-  if(error) showToast("Connexion Google : "+error.message,"error");
+  const status=document.getElementById("supabaseLoginStatus");
+  const button=document.getElementById("supabaseGoogleLogin");
+  if (!supabaseClient) {
+    if(status) status.textContent="Initialisation en cours. Réessayez dans quelques secondes.";
+    console.error("AutoTrack: Supabase client not initialized yet.");
+    return;
+  }
+  if(button) { button.disabled=true; button.textContent="Redirection vers Google…"; }
+  if(status) status.textContent="Ouverture de la connexion Google…";
+  try {
+    const {data,error}=await supabaseClient.auth.signInWithOAuth({provider:"google", options:{redirectTo:window.location.href.split("#")[0]}});
+    if(error) throw error;
+    if(data?.url) window.location.assign(data.url);
+  } catch(e) {
+    console.error("AutoTrack Google OAuth",e);
+    if(status) status.textContent="Erreur de connexion : "+(e.message||e);
+    if(button) { button.disabled=false; button.textContent="Continuer avec Google"; }
+  }
 }
 async function autoTrackLogout() {
   if (supabaseClient) await supabaseClient.auth.signOut();
@@ -2838,14 +2853,24 @@ async function handleSupabaseSession(session) {
   const cloudBadge=document.getElementById("oneDriveHeaderStatus"); if(cloudBadge) cloudBadge.textContent="☁️ Supabase : connecté";
 }
 (async function autoTrackSupabaseBoot(){
+  const status=document.getElementById("supabaseLoginStatus");
+  const button=document.getElementById("supabaseGoogleLogin");
+  if(button) { button.disabled=true; button.textContent="Initialisation…"; }
   try {
     const lib=window.supabase;
-    if(!lib?.createClient) throw new Error("Bibliothèque Supabase indisponible");
+    if(!lib?.createClient) throw new Error("Bibliothèque Supabase indisponible. Vérifiez votre connexion Internet et rechargez la page.");
     supabaseClient=lib.createClient(AUTOTRACK_SUPABASE_URL,AUTOTRACK_SUPABASE_KEY);
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    await handleSupabaseSession(session);
+    const {data,error}=await supabaseClient.auth.getSession();
+    if(error) throw error;
+    await handleSupabaseSession(data.session);
     supabaseClient.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>handleSupabaseSession(session),0);});
-  } catch(e) { const status=document.getElementById("supabaseLoginStatus"); if(status) status.textContent="Initialisation impossible : "+e.message; console.error(e); }
+    if(!data.session && button) { button.disabled=false; button.textContent="Continuer avec Google"; }
+    if(!data.session && status) status.textContent="Connexion sécurisée — données privées";
+  } catch(e) {
+    if(status) status.textContent="Initialisation impossible : "+(e.message||e);
+    if(button) { button.disabled=true; button.textContent="Connexion indisponible"; }
+    console.error("AutoTrack Supabase initialization",e);
+  }
 })();
 
 </script>
