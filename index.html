@@ -56,7 +56,7 @@
     </div>
   </div>
   <!-- ==================== APPLICATION PRINCIPALE ==================== -->
-  <div id="appView">
+  <div id="appView" class="hidden">
     <!-- Barre supérieure -->
     <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
       <div class="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center justify-between gap-3">
@@ -2852,8 +2852,19 @@ async function handleSupabaseSession(session) {
   initAppAfterLogin();
   const cloudBadge=document.getElementById("oneDriveHeaderStatus"); if(cloudBadge) cloudBadge.textContent="☁️ Supabase : connecté";
 }
+// Exposer explicitement la fonction pour les navigateurs et les handlers HTML.
+window.autoTrackGoogleLogin = autoTrackGoogleLogin;
+
 (async function autoTrackSupabaseBoot(){
   const status=document.getElementById("supabaseLoginStatus");
+  const loginButton=document.getElementById("supabaseGoogleLogin");
+  if (loginButton && !loginButton.dataset.supabaseBound) {
+    loginButton.dataset.supabaseBound = "1";
+    loginButton.addEventListener("click", function(event) {
+      event.preventDefault();
+      window.autoTrackGoogleLogin();
+    });
+  }
   const button=document.getElementById("supabaseGoogleLogin");
   if(button) { button.disabled=true; button.textContent="Initialisation…"; }
   try {
