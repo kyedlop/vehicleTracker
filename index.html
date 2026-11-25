@@ -65,7 +65,7 @@
 
         <div class="flex items-center gap-2 flex-wrap">
           <span id="oneDriveHeaderStatus" onclick="switchTab('backup')" title="État sauvegarde Google Drive" class="cursor-pointer text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">📁 Google Drive : Manuel</span>
-          <button type="button" id="currentUserBadge" onclick="openAccountSecurityModal()" class="text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium transition cursor-pointer">👤 Bienvenue</button>
+          
           <button type="button" onclick="triggerManualOrAutoSync()" title="Synchroniser ou télécharger la sauvegarde" aria-label="Sauvegarder"
             class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
             💾
@@ -532,10 +532,7 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1">Nom / Surnom du véhicule</label>
             <input type="text" id="vName" required placeholder="ex: Kimberly" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Propriétaire</label>
-            <select id="vOwner" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white"></select>
-          </div>
+
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">N° d'immatriculation</label>
@@ -1428,11 +1425,7 @@ function populateVehicleSelector() {
     sel.innerHTML = `<option value="">Aucun véhicule</option>`;
     return;
   }
-  sel.innerHTML = db.vehicles.map(v => {
-    const owner = db.users.find(u => u.id === v.ownerId);
-    const ownerLabel = owner ? ` — ${owner.displayName}` : "";
-    return `<option value="${v.id}" ${v.id === activeVehicleId ? "selected" : ""}>🚘 ${v.name}${ownerLabel}</option>`;
-  }).join("");
+  sel.innerHTML = db.vehicles.map(v => `<option value="${v.id}" ${v.id === activeVehicleId ? "selected" : ""}>🚘 ${v.name}</option>`).join("");
 }
 
 document.getElementById("vehicleSelect").addEventListener("change", (e) => {
@@ -2395,13 +2388,14 @@ function renderQuickAccess() {
   if (!v) { if (infoCard) infoCard.innerHTML = "Aucun véhicule"; if (oilCard) oilCard.innerHTML = ""; return; }
   const m = computeVehicleMetrics(v);
   if (infoCard) infoCard.innerHTML = `<h3 class="text-lg font-bold mb-3">🚘 ${v.name} — ${v.brand} ${v.model}</h3>
-    <div class="space-y-2 text-sm"><div>⛽ Carburant : <strong>${v.fuelType || "—"}</strong></div>
-    <div>⚡ Puissance : <strong>${v.power || "—"}</strong></div>
-    <div>🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
-    <div>⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
-    <div>💎 Valeur estimée : <strong>${fmtEur(m.currentValue)}</strong></div>
-    <div>⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} L/100 • ${fmtEur(m.fuelCostPerKm,2)} / km</strong></div>
-    <div>💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay)} / jour • ${fmtEur(m.totalCostPerMonth)} / mois • ${fmtEur(m.totalCostPerKm)} / km</strong></div></div>`;
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+    <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">⛽ Carburant : <strong>${v.fuelType || "—"}</strong></div>
+    <div class="rounded-xl border border-violet-200 bg-violet-50 p-3">⚡ Puissance : <strong>${v.power || "—"}</strong></div>
+    <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
+    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">💎 Valeur estimée : <strong>${fmtEur(m.currentValue)}</strong></div>
+    <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-3">⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} L/100 • ${fmtEur(m.fuelCostPerKm,2)} / km</strong></div>
+    <div class="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay)} / jour • ${fmtEur(m.totalCostPerMonth)} / mois • ${fmtEur(m.totalCostPerKm)} / km</strong></div></div>`;
   if (oilCard) {
     const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
     oilCard.innerHTML = `<div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-800">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date indisponible"}</span></div>
@@ -2414,23 +2408,21 @@ function renderVehiclesTab() {
   const grid = document.getElementById("vehiclesListGrid");
   grid.innerHTML = db.vehicles.map(v => {
     const m = computeVehicleMetrics(v);
-    const owner = db.users.find(u => u.id === v.ownerId);
     const isCurrent = v.id === activeVehicleId;
     return `
       <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border-2 ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
         <div class="flex items-center justify-between gap-2 mb-2">
           <h4 class="text-base font-bold text-slate-900">🚘 ${v.name} (${v.brand} ${v.model})</h4>
-          <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">👤 ${owner ? owner.displayName : "Non assigné"}</span>
         </div>
         <p class="text-xs text-slate-500 mb-3">
           Version : <strong>${v.version || "Technoline"}</strong> • ${v.registration ? `Immatriculation : <strong>${v.registration}</strong> • ` : ""}Année : <strong>${v.year}</strong> • Puissance : <strong>${v.power}</strong> • Carburant : <strong>${v.fuelType}</strong>
         </p>
-        <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl mb-4">
-          <div>Prix d'achat : <strong>${fmtEur(v.purchasePrice)}</strong></div>
-          <div>Valeur actuelle : <strong class="text-emerald-600">${fmtEur(m.currentValue)}</strong></div>
-          <div>Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
-          <div>Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} L/100</strong></div>
-          <div class="col-span-2">Coût carburant / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2)} / km</strong></div><div class="col-span-2 border-t border-slate-200 pt-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2)} / jour • ${fmtEur(m.totalCostPerMonth,2)} / mois • ${fmtEur(m.totalCostPerKm,2)} / km</strong></div>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">Prix d'achat : <strong>${fmtEur(v.purchasePrice)}</strong></div>
+          <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">Valeur actuelle : <strong class="text-emerald-600">${fmtEur(m.currentValue)}</strong></div>
+          <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
+          <div class="rounded-xl border border-violet-200 bg-violet-50 p-3">Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} L/100</strong></div>
+          <div class="col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">Coût carburant / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2)} / km</strong></div><div class="col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2)} / jour • ${fmtEur(m.totalCostPerMonth,2)} / mois • ${fmtEur(m.totalCostPerKm,2)} / km</strong></div>
         </div>
         <div class="flex gap-2 flex-wrap">
           <button type="button" onclick="selectVehicleFromCard('${v.id}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer">Afficher le suivi</button>
@@ -2451,7 +2443,7 @@ function selectVehicleFromCard(id) {
 
 function populateUserSelects() {
   const opts = db.users.map(u => `<option value="${u.id}">${u.displayName}</option>`).join("");
-  document.getElementById("vOwner").innerHTML = opts || `<option value="">Utilisateur actuel</option>`;
+  
 }
 
 function openVehicleModal(vehicleId = "") {
@@ -2461,7 +2453,7 @@ function openVehicleModal(vehicleId = "") {
     const v = db.vehicles.find(x => x.id === vehicleId);
     document.getElementById("vehicleModalTitle").textContent = "✏️ Modifier le véhicule";
     document.getElementById("vName").value = v.name;
-    document.getElementById("vOwner").value = v.ownerId || (currentUser ? currentUser.id : "");
+    
     document.getElementById("vRegistration").value = v.registration || "";
     document.getElementById("vBrand").value = v.brand;
     document.getElementById("vModel").value = v.model;
@@ -2475,7 +2467,7 @@ function openVehicleModal(vehicleId = "") {
   } else {
     document.getElementById("vehicleModalTitle").textContent = "🚘 Ajouter un véhicule";
     document.getElementById("vName").value = "";
-    document.getElementById("vOwner").value = currentUser ? currentUser.id : "";
+    
     document.getElementById("vRegistration").value = "";
     document.getElementById("vBrand").value = "";
     document.getElementById("vModel").value = "";
@@ -2495,7 +2487,7 @@ document.getElementById("vehicleForm").addEventListener("submit", (e) => {
   const editId = document.getElementById("vEditId").value;
   const payload = {
     name: document.getElementById("vName").value.trim(),
-    ownerId: document.getElementById("vOwner").value || (currentUser ? currentUser.id : null),
+    ownerId: currentUser ? currentUser.id : null,
     registration: document.getElementById("vRegistration").value.trim().toUpperCase(),
     brand: document.getElementById("vBrand").value.trim(),
     model: document.getElementById("vModel").value.trim(),
