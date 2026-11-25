@@ -109,13 +109,16 @@
 
       <!-- ACCÈS RAPIDE -->
       <section id="tab-quick" class="space-y-4">
-        <p id="quickUpdated" class="text-xs text-slate-500 text-right"></p>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button onclick="openFuelModal()" class="p-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow">⛽ + Plein</button>
-          <button onclick="openExpenseModal()" class="p-5 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white text-lg font-bold shadow">🧾 + Dépense</button>
-          <button onclick="openBenefitModal()" class="p-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold shadow">💶 + Bénéfice</button>
+        <p id="quickUpdated" class="text-xs text-slate-500 text-left"></p>
+        <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button onclick="openFuelModal()" class="p-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow">⛽ + Plein</button>
+            <button onclick="openExpenseModal()" class="p-5 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white text-lg font-bold shadow">🧾 + Dépense</button>
+            <button onclick="openBenefitModal()" class="p-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold shadow">💶 + Bénéfice</button>
+          </div>
         </div>
-        <div id="quickOilCard" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"></div>
+        <div id="quickVehicleCard" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"></div>
+        <div id="quickOilCard" class="bg-amber-100 rounded-2xl p-5 shadow-xs border border-amber-300"></div>
       </section>
 
       <!-- ==================== ONGLET 1 : TABLEAU DE BORD ==================== -->
@@ -402,34 +405,6 @@
         </div>
       </section>
     </main>
-  </div>
-
-  <!-- ==================== MODALE SÉCURITÉ DU COMPTE ==================== -->
-  <div id="accountSecurityModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
-    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-slate-900">🔐 Sécurité de mon compte</h3>
-        <button type="button" onclick="closeModal('accountSecurityModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
-      </div>
-      <p class="text-xs sm:text-sm text-slate-600 mb-4">
-        Modifiez le mot de passe de votre profil connecté (<strong id="pwdAccountLabel"></strong>).
-      </p>
-      <form id="changePasswordForm" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Nouveau mot de passe</label>
-          <input type="password" id="newPasswordInput" placeholder="Minimum 4 caractères" required minlength="4"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Confirmer le nouveau mot de passe</label>
-          <input type="password" id="newPasswordConfirmInput" placeholder="Confirmez le mot de passe" required minlength="4"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
-        </div>
-        <button type="submit" class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition cursor-pointer">
-          Mettre à jour mon mot de passe
-        </button>
-      </form>
-    </div>
   </div>
 
   <!-- ==================== MODALE AJOUT/ÉDITION PLEIN ==================== -->
@@ -1426,7 +1401,6 @@ function initAppAfterLogin() {
   document.getElementById("authWrapper").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   document.getElementById("currentUserBadge").textContent = "👤 " + currentUser.displayName;
-  document.getElementById("pwdAccountLabel").textContent = currentUser.displayName;
 
   const userVehicles = db.vehicles.filter(v => v.ownerId === currentUser.id);
   if (userVehicles.length > 0) {
@@ -2449,14 +2423,24 @@ function renderExpenseDetailsTab() {
 function renderQuickAccess() {
   const v = getActiveVehicle();
   const updated = document.getElementById("quickUpdated");
-  if (updated) updated.textContent = "Dernière mise à jour effectuée : " + (db.lastUpdated ? new Date(db.lastUpdated).toLocaleString("fr-FR") : "—");
-  const card = document.getElementById("quickOilCard");
-  if (!card || !v) { if (card) card.innerHTML = "Aucun véhicule"; return; }
+  if (updated) updated.textContent = "Dernière mise à jour effectuée le : " + (db.lastUpdated ? new Date(db.lastUpdated).toLocaleString("fr-FR") : "—");
+  const infoCard = document.getElementById("quickVehicleCard");
+  const oilCard = document.getElementById("quickOilCard");
+  if (!v) { if (infoCard) infoCard.innerHTML = "Aucun véhicule"; if (oilCard) oilCard.innerHTML = ""; return; }
   const m = computeVehicleMetrics(v);
-  const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
-  card.innerHTML = `<h3 class="font-bold text-slate-900 mb-2">🛠️ Prochaine vidange estimée</h3>
-    <div class="text-2xl font-bold text-amber-600">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date estimée indisponible"}</div>
-    <p class="text-sm text-slate-600 mt-2">Vers ${fmtNum(m.targetOilChangeOdo,0)} km • ${fmtNum(remaining,0)} km restants</p>`;
+  if (infoCard) infoCard.innerHTML = `<h3 class="text-lg font-bold mb-3">🚘 ${v.name} — ${v.brand} ${v.model}</h3>
+    <div class="space-y-2 text-sm"><div>⛽ Carburant : <strong>${v.fuelType || "—"}</strong></div>
+    <div>⚡ Puissance : <strong>${v.power || "—"}</strong></div>
+    <div>🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
+    <div>⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
+    <div>💎 Valeur estimée : <strong>${fmtEur(m.currentValue)}</strong></div>
+    <div>⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} L/100 • ${fmtEur(m.fuelCostPerKm,2)} / km</strong></div>
+    <div>💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay)} / jour • ${fmtEur(m.totalCostPerMonth)} / mois • ${fmtEur(m.totalCostPerKm)} / km</strong></div></div>`;
+  if (oilCard) {
+    const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
+    oilCard.innerHTML = `<div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-800">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date indisponible"}</span></div>
+    <p class="text-sm text-amber-900 mt-2">Dernière à ${fmtNum(m.lastOilChangeOdo,0)} km • Seuil ${fmtNum(m.targetOilChangeOdo,0)} km (reste ${fmtNum(remaining,0)} km à ~${fmtNum(m.kmPerWeek,0)} km/sem) ou 1 an (${m.nextOilChangeReason === "échéance 1 an" ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : new Date(new Date(m.lastOilChangeDateStr+"T12:00:00").setFullYear(new Date(m.lastOilChangeDateStr+"T12:00:00").getFullYear()+1)).toLocaleDateString("fr-FR")})</p>`;
+  }
 }
 
 // ==================== GESTION MULTI-VÉHICULES ====================
@@ -2647,25 +2631,6 @@ function handleJSONImport(file) {
 document.getElementById("loginImportFile").addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
 document.getElementById("syncImportFile").addEventListener("change", (e) => handleJSONImport(e.target.files[0]));
 
-document.getElementById("changePasswordForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const newPwd = document.getElementById("newPasswordInput").value;
-  const confirmPwd = document.getElementById("newPasswordConfirmInput").value;
-  if (newPwd !== confirmPwd) {
-    showToast("Les mots de passe ne correspondent pas.", "error");
-    return;
-  }
-  if (currentUser) {
-    const u = db.users.find(x => x.id === currentUser.id);
-    if (u) {
-      u.passwordHash = await sha256(newPwd);
-      saveDB(true);
-      document.getElementById("changePasswordForm").reset();
-      showToast("Mot de passe mis à jour. Pensez à exporter le JSON.", "success");
-    }
-  }
-});
-
 // ==================== ONGLET BÉNÉFICES ====================
 function renderBenefitsTab() {
   const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = [];
@@ -2826,12 +2791,7 @@ function switchTab(tabName) {
   }
 }
 
-function openAccountSecurityModal() {
-  if (currentUser) {
-    document.getElementById("pwdAccountLabel").textContent = currentUser.displayName;
-  }
-  document.getElementById("accountSecurityModal").classList.remove("hidden");
-}
+function openAccountSecurityModal() { return; }
 
 function closeModal(id) {
   document.getElementById(id).classList.add("hidden");
