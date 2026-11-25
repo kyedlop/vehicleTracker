@@ -46,99 +46,9 @@
     </div>
   </div>
 
-  <!-- ==================== ÉCRAN D'AUTHENTIFICATION ==================== -->
-  <div id="authWrapper" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-    <div class="bg-white w-full max-w-md rounded-2xl p-7 sm:p-8 shadow-2xl border border-slate-100">
-      
-      <!-- En-tête Logo -->
-      <div class="flex items-center gap-3.5 mb-7">
-        <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-blue-600/30">
-          🚗
-        </div>
-        <div>
-          <h1 class="text-2xl font-bold tracking-tight text-slate-900">AutoTrack</h1>
-          <p class="text-xs sm:text-sm text-slate-500">Suivi Carburant, Dépenses & Valeur</p>
-        </div>
-      </div>
-
-      <!-- 1) VUE DE CONNEXION -->
-      <div id="loginBox">
-        <h2 class="text-lg font-bold text-slate-800 mb-1">Connexion</h2>
-        <p class="text-xs text-slate-500 mb-5">Accédez à votre espace de gestion automobile.</p>
-
-        <form id="loginForm" class="space-y-4">
-          <div>
-            <label for="loginUser" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Identifiant</label>
-            <input type="text" id="loginUser" placeholder="Saisissez votre identifiant" required autocomplete="username"
-              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition" />
-          </div>
-          <div>
-            <label for="loginPass" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Mot de passe</label>
-            <input type="password" id="loginPass" placeholder="••••••••" required autocomplete="current-password"
-              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition" />
-          </div>
-
-          <div id="loginError" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium"></div>
-
-          <button type="submit" class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-blue-600/25 transition cursor-pointer">
-            Se connecter
-          </button>
-        </form>
-
-        <div class="mt-6 pt-5 border-t border-slate-200 flex flex-col gap-3">
-          <button type="button" onclick="toggleAuthMode('register')"
-            class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm transition cursor-pointer">
-            Créer un compte
-          </button>
-
-          <label class="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 text-slate-600 font-medium text-xs text-center transition cursor-pointer">
-            📂 Importer une sauvegarde JSON (Google Drive / OneDrive)
-            <input type="file" id="loginImportFile" accept=".json" class="hidden" />
-          </label>
-        </div>
-      </div>
-
-      <!-- 2) VUE D'INSCRIPTION -->
-      <div id="registerBox" class="hidden">
-        <h2 class="text-lg font-bold text-slate-800 mb-1">Créer un compte</h2>
-        <p class="text-xs text-slate-500 mb-5">Créez votre profil pour gérer vos propres véhicules et dépenses.</p>
-
-        <form id="registerForm" class="space-y-4">
-          <div>
-            <label for="regUser" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Identifiant souhaité</label>
-            <input type="text" id="regUser" placeholder="Ex: Meera" required autocomplete="username"
-              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition" />
-          </div>
-          <div>
-            <label for="regPass" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Mot de passe</label>
-            <input type="password" id="regPass" placeholder="Minimum 4 caractères" required minlength="4" autocomplete="new-password"
-              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition" />
-          </div>
-          <div>
-            <label for="regPassConfirm" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Confirmation du mot de passe</label>
-            <input type="password" id="regPassConfirm" placeholder="Confirmez le mot de passe" required minlength="4" autocomplete="new-password"
-              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition" />
-          </div>
-
-          <div id="registerError" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium"></div>
-
-          <button type="submit" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-emerald-600/25 transition cursor-pointer">
-            Créer mon compte
-          </button>
-        </form>
-
-        <div class="mt-6 pt-4 border-t border-slate-200 text-center">
-          <button type="button" onclick="toggleAuthMode('login')" class="text-sm font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer">
-            Déjà un compte ? Se connecter
-          </button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
+  <div id="authWrapper" class="hidden"></div>
   <!-- ==================== APPLICATION PRINCIPALE ==================== -->
-  <div id="appView" class="hidden">
+  <div id="appView">
     <!-- Barre supérieure -->
     <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
       <div class="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center justify-between gap-3">
@@ -160,10 +70,7 @@
             class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
             💾
           </button>
-          <button type="button" onclick="logout()" title="Déconnexion" aria-label="Déconnexion"
-            class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-            <span aria-hidden="true">🚪</span> Déconnexion
-          </button>
+          
         </div>
       </div>
     </header>
@@ -171,7 +78,8 @@
     <!-- Navigation par onglets -->
     <nav class="bg-white border-b border-slate-200 px-4 overflow-x-auto no-scrollbar">
       <div class="max-w-7xl mx-auto flex gap-1 sm:gap-2">
-        <button type="button" class="tab-btn active border-b-2 border-blue-600 text-blue-600 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tableau de bord</button>
+        <button type="button" class="tab-btn active border-b-2 border-blue-600 text-blue-600 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="quick" onclick="switchTab('quick')">⚡ Accès Rapide</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tableau de bord</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="fuel-details" onclick="switchTab('fuel-details')">📈 Pleins & Conso</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="expenses-details" onclick="switchTab('expenses-details')">📉 Dépenses</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="benefits" onclick="switchTab('benefits')">💶 Bénéfices</button>
@@ -189,7 +97,7 @@
       </div>
 
       <!-- Bannière véhicule actif -->
-      <div id="vehicleBanner" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 border-l-4 border-l-blue-600 mb-5 flex flex-wrap items-center justify-between gap-4"></div>
+      <div id="vehicleBanner" class="hidden"></div>
 
       <!-- État vide si aucun véhicule -->
       <div id="emptyVehicleState" class="hidden bg-white rounded-2xl p-8 text-center shadow-xs border border-slate-200 mb-6">
@@ -198,6 +106,17 @@
         <p class="text-sm text-slate-500 mb-4">Ajoutez votre véhicule (marque, modèle, année, puissance, carburant) pour commencer le suivi.</p>
         <button type="button" onclick="openVehicleModal()" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition cursor-pointer">+ Ajouter mon véhicule</button>
       </div>
+
+      <!-- ACCÈS RAPIDE -->
+      <section id="tab-quick" class="space-y-4">
+        <p id="quickUpdated" class="text-xs text-slate-500 text-right"></p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button onclick="openFuelModal()" class="p-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow">⛽ + Plein</button>
+          <button onclick="openExpenseModal()" class="p-5 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white text-lg font-bold shadow">🧾 + Dépense</button>
+          <button onclick="openBenefitModal()" class="p-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold shadow">💶 + Bénéfice</button>
+        </div>
+        <div id="quickOilCard" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"></div>
+      </section>
 
       <!-- ==================== ONGLET 1 : TABLEAU DE BORD ==================== -->
       <section id="tab-dashboard">
@@ -539,6 +458,7 @@
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Date du plein</label>
             <input type="date" id="fDate" required class="w-36 px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-semibold text-slate-600 mt-2">Heure</label><input type="time" id="fTime" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Compteur (km)</label>
@@ -583,6 +503,7 @@
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
             <input type="date" id="eDate" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-semibold text-slate-600 mt-2">Heure</label><input type="time" id="eTime" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Compteur (km)</label>
@@ -1723,6 +1644,7 @@ function fmtNum(n, dec = 2) {
 function refreshAllViews() {
   const v = getActiveVehicle();
   const banner = document.getElementById("vehicleBanner");
+  if (banner) banner.innerHTML = "";
   const emptyState = document.getElementById("emptyVehicleState");
 
   if (!v) {
@@ -1879,6 +1801,7 @@ function refreshAllViews() {
   renderExpenseDetailsTab();
   renderBenefitsTab();
   renderVehiclesTab();
+  renderQuickAccess();
 }
 
 function renderCharts(v, m) {
@@ -2044,6 +1967,7 @@ function openFuelModal(index = -1) {
     const item = v.fuelLogs[index];
     document.getElementById("fuelModalTitle").textContent = "✏️ Modifier le plein";
     document.getElementById("fDate").value = item.date;
+    document.getElementById("fTime").value = item.time || "";
     document.getElementById("fOdo").value = item.odometer;
     document.getElementById("fCost").value = item.cost;
     document.getElementById("fPricePerLiter").value = item.pricePerLiter;
@@ -2055,6 +1979,7 @@ function openFuelModal(index = -1) {
   } else {
     document.getElementById("fuelModalTitle").textContent = "⛽ Ajouter un plein";
     document.getElementById("fDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("fTime").value = new Date().toTimeString().slice(0,5);
     const m = computeVehicleMetrics(v);
     document.getElementById("fOdo").value = m.currentOdometer + 450;
     document.getElementById("fCost").value = "";
@@ -2113,7 +2038,8 @@ document.getElementById("fuelForm").addEventListener("submit", (e) => {
   const liters = pricePerLiter > 0 ? Number((cost / pricePerLiter).toFixed(3)) : 0;
   const existingType = getSelectedFuelEnergyType();
 
-  const entry = { date, odometer, cost, liters, pricePerLiter, distance: 0, fuelType: existingType };
+  const time = document.getElementById("fTime").value || "00:00";
+  const entry = { date, time, odometer, cost, liters, pricePerLiter, distance: 0, fuelType: existingType };
   if (idx >= 0) {
     v.fuelLogs[idx] = entry;
   } else {
@@ -2186,10 +2112,10 @@ function renderFuelDetailsTab() {
 
   // Calcul des saisons intégrées dans le pavé CONSO MOYENNE
   const seasons = [
-    { name: "Hiver", emoji: "❄️", months: [12, 1, 2] },
-    { name: "Printemps", emoji: "🌸", months: [3, 4, 5] },
-    { name: "Eté", emoji: "☀️", months: [6, 7, 8] },
-    { name: "Automne", emoji: "🍂", months: [9, 10, 11] }
+    { name: "Hiver (Déc)", emoji: "❄️", months: [12, 1, 2] },
+    { name: "Printemps (Mar)", emoji: "🌸", months: [3, 4, 5] },
+    { name: "Eté (Jun)", emoji: "☀️", months: [6, 7, 8] },
+    { name: "Automne (Sep)", emoji: "🍂", months: [9, 10, 11] }
   ];
   const seasonsLinesHtml = seasons.map(se => {
     const logs = m.enrichedFuel.filter(x => x.conso100 !== null && x.conso100 > 0 && se.months.includes(new Date(x.date + "T12:00:00").getMonth() + 1));
@@ -2384,6 +2310,7 @@ function openExpenseModal(index = -1) {
     const item = v.expenses[index];
     document.getElementById("expenseModalTitle").textContent = "✏️ Modifier la dépense";
     document.getElementById("eDate").value = item.date;
+    document.getElementById("eTime").value = item.time || "";
     document.getElementById("eOdo").value = item.odometer;
     document.getElementById("eCost").value = item.cost;
     document.getElementById("eCategory").value = item.category || categorizeExpense(item.info);
@@ -2391,6 +2318,7 @@ function openExpenseModal(index = -1) {
   } else {
     document.getElementById("expenseModalTitle").textContent = "🧾 Ajouter une dépense";
     document.getElementById("eDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("eTime").value = new Date().toTimeString().slice(0,5);
     const m = computeVehicleMetrics(v);
     document.getElementById("eOdo").value = m.currentOdometer;
     document.getElementById("eCost").value = "";
@@ -2407,6 +2335,7 @@ document.getElementById("expenseForm").addEventListener("submit", (e) => {
   const info = document.getElementById("eInfo").value.trim();
   const entry = {
     date: document.getElementById("eDate").value,
+    time: document.getElementById("eTime").value || "00:00",
     odometer: parseInt(document.getElementById("eOdo").value, 10) || 0,
     cost: parseFloat(document.getElementById("eCost").value),
     category: document.getElementById("eCategory").value,
@@ -2517,6 +2446,19 @@ function renderExpenseDetailsTab() {
   });
 }
 
+function renderQuickAccess() {
+  const v = getActiveVehicle();
+  const updated = document.getElementById("quickUpdated");
+  if (updated) updated.textContent = "Dernière mise à jour effectuée : " + (db.lastUpdated ? new Date(db.lastUpdated).toLocaleString("fr-FR") : "—");
+  const card = document.getElementById("quickOilCard");
+  if (!card || !v) { if (card) card.innerHTML = "Aucun véhicule"; return; }
+  const m = computeVehicleMetrics(v);
+  const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
+  card.innerHTML = `<h3 class="font-bold text-slate-900 mb-2">🛠️ Prochaine vidange estimée</h3>
+    <div class="text-2xl font-bold text-amber-600">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date estimée indisponible"}</div>
+    <p class="text-sm text-slate-600 mt-2">Vers ${fmtNum(m.targetOilChangeOdo,0)} km • ${fmtNum(remaining,0)} km restants</p>`;
+}
+
 // ==================== GESTION MULTI-VÉHICULES ====================
 function renderVehiclesTab() {
   const grid = document.getElementById("vehiclesListGrid");
@@ -2525,7 +2467,7 @@ function renderVehiclesTab() {
     const owner = db.users.find(u => u.id === v.ownerId);
     const isCurrent = v.id === activeVehicleId;
     return `
-      <div class="rounded-2xl p-5 bg-white border-2 ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
+      <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border-2 ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
         <div class="flex items-center justify-between gap-2 mb-2">
           <h4 class="text-base font-bold text-slate-900">🚘 ${v.name} (${v.brand} ${v.model})</h4>
           <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">👤 ${owner ? owner.displayName : "Non assigné"}</span>
@@ -2554,7 +2496,7 @@ function selectVehicleFromCard(id) {
   activeVehicleId = id;
   populateVehicleSelector();
   refreshAllViews();
-  switchTab("dashboard");
+  switchTab("quick");
 }
 
 function populateUserSelects() {
@@ -2803,7 +2745,7 @@ function renderBenefitsTab() {
 
       <div class="p-3.5 rounded-xl border ${balanceCardStyle} flex items-center justify-between">
         <div>
-          <div class="text-[15px] opacity-75">${isPositive ? 'Seuil de rentabilité dépassé' : 'Reste à amortir'}</div>
+          <div class="text-[15px] opacity-75"><strong>${isPositive ? 'Seuil de rentabilité dépassé' : 'Reste à amortir'}</strong></div>
         </div>
         <div class="text-xl font-extrabold ${balanceValueColor}">${fmtEur(diff, 2)}</div>
       </div>
@@ -2863,10 +2805,11 @@ function switchTab(tabName) {
     b.classList.toggle("border-transparent", !active);
     b.classList.toggle("text-slate-500", !active);
   });
-  ["dashboard", "fuel-details", "expenses-details", "benefits", "vehicles", "backup"].forEach(t => {
+  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles", "backup"].forEach(t => {
     const el = document.getElementById("tab-" + t);
     if (el) el.classList.toggle("hidden", t !== tabName);
   });
+  if (tabName === "quick") renderQuickAccess();
   if (tabName === "fuel-details") renderFuelDetailsTab();
   if (tabName === "expenses-details") renderExpenseDetailsTab();
   if (tabName === "benefits") renderBenefitsTab();
@@ -2894,14 +2837,15 @@ function closeModal(id) {
   document.getElementById(id).classList.add("hidden");
 }
 
-const savedSessionId = sessionStorage.getItem(SESSION_KEY);
-if (savedSessionId) {
-  const found = db.users.find(u => u.id === savedSessionId);
-  if (found) {
-    currentUser = found;
-    initAppAfterLogin();
-  }
-}
+// Démarrage sans écran de connexion : espace local unique.
+currentUser = db.users[0] || { id: "local_user", username: "local", displayName: "Utilisateur" };
+if (!db.users.length) db.users.push(currentUser);
+db.vehicles.forEach(v => { if (!v.ownerId) v.ownerId = currentUser.id; });
+activeVehicleId = db.vehicles[0]?.id || null;
+document.getElementById("authWrapper")?.classList.add("hidden");
+document.getElementById("appView")?.classList.remove("hidden");
+document.getElementById("currentUserBadge")?.classList.add("hidden");
+initAppAfterLogin();
 </script>
 </body>
 </html>
