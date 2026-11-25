@@ -2767,7 +2767,7 @@ function closeModal(id) {
 const AUTOTRACK_SUPABASE_URL = "https://zqirygiwqmtfykianplr.supabase.co";
 const AUTOTRACK_SUPABASE_KEY = "sb_publishable_dsKuoK6SVDXkz4D_FBqNVQ_1dTe2h8d";
 const AUTOTRACK_BUCKET = "autotrack-data";
-let supabaseClient = null, supabaseUser = null, supabaseSaveTimer = null, cloudFilePath = null;
+var supabaseClient = null, supabaseUser = null, supabaseSaveTimer = null, cloudFilePath = null;
 
 function getCloudFileName(email) {
   const localPart = (email || "autotrack").split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "_");
