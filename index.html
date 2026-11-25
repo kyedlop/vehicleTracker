@@ -2387,15 +2387,15 @@ function renderQuickAccess() {
   const oilCard = document.getElementById("quickOilCard");
   if (!v) { if (infoCard) infoCard.innerHTML = "Aucun véhicule"; if (oilCard) oilCard.innerHTML = ""; return; }
   const m = computeVehicleMetrics(v);
-  if (infoCard) infoCard.innerHTML = `<h3 class="text-lg font-bold mb-3">🚘 ${v.name} — ${v.brand} ${v.model}</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-    <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">⛽ Carburant : <strong>${v.fuelType || "—"}</strong></div>
-    <div class="rounded-xl border border-violet-200 bg-violet-50 p-3">⚡ Puissance : <strong>${v.power || "—"}</strong></div>
-    <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
-    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
-    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">💎 Valeur estimée : <strong>${fmtEur(m.currentValue)}</strong></div>
-    <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-3">⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} L/100 • ${fmtEur(m.fuelCostPerKm,2)} / km</strong></div>
-    <div class="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay)} / jour • ${fmtEur(m.totalCostPerMonth)} / mois • ${fmtEur(m.totalCostPerKm)} / km</strong></div></div>`;
+  if (infoCard) infoCard.innerHTML = `<h3 class="text-base font-bold mb-3">🚘 ${v.name} — ${v.brand} ${v.model}</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+    <div class="rounded-lg border border-sky-200 bg-sky-50 p-2">⛽ Carburant : <strong>${v.fuelType || "—"}</strong></div>
+    <div class="rounded-lg border border-violet-200 bg-violet-50 p-2">⚡ Puissance : <strong>${v.power || "—"}</strong></div>
+    <div class="rounded-lg border border-blue-200 bg-blue-50 p-2">🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
+    <div class="rounded-lg border border-amber-200 bg-amber-50 p-2">⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2">💎 Valeur estimée : <strong>${fmtEur(m.currentValue)}</strong></div>
+    <div class="rounded-lg border border-cyan-200 bg-cyan-50 p-2">⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} L/100 • ${fmtEur(m.fuelCostPerKm,2)} / km</strong></div>
+    <div class="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay)} / jour • ${fmtEur(m.totalCostPerMonth)} / mois • ${fmtEur(m.totalCostPerKm)} / km</strong></div></div>`;
   if (oilCard) {
     const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
     oilCard.innerHTML = `<div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-800">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date indisponible"}</span></div>
@@ -2410,7 +2410,7 @@ function renderVehiclesTab() {
     const m = computeVehicleMetrics(v);
     const isCurrent = v.id === activeVehicleId;
     return `
-      <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border-2 ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
+      <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
         <div class="flex items-center justify-between gap-2 mb-2">
           <h4 class="text-base font-bold text-slate-900">🚘 ${v.name} (${v.brand} ${v.model})</h4>
         </div>
@@ -2418,11 +2418,11 @@ function renderVehiclesTab() {
           Version : <strong>${v.version || "Technoline"}</strong> • ${v.registration ? `Immatriculation : <strong>${v.registration}</strong> • ` : ""}Année : <strong>${v.year}</strong> • Puissance : <strong>${v.power}</strong> • Carburant : <strong>${v.fuelType}</strong>
         </p>
         <div class="grid grid-cols-2 gap-2 text-xs mb-4">
-          <div class="rounded-xl border border-blue-200 bg-blue-50 p-3">Prix d'achat : <strong>${fmtEur(v.purchasePrice)}</strong></div>
-          <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">Valeur actuelle : <strong class="text-emerald-600">${fmtEur(m.currentValue)}</strong></div>
-          <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
-          <div class="rounded-xl border border-violet-200 bg-violet-50 p-3">Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} L/100</strong></div>
-          <div class="col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">Coût carburant / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2)} / km</strong></div><div class="col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2)} / jour • ${fmtEur(m.totalCostPerMonth,2)} / mois • ${fmtEur(m.totalCostPerKm,2)} / km</strong></div>
+          <div class="rounded-lg border border-blue-200 bg-blue-50 p-2">Prix d'achat : <strong>${fmtEur(v.purchasePrice)}</strong></div>
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2">Valeur actuelle : <strong class="text-emerald-600">${fmtEur(m.currentValue)}</strong></div>
+          <div class="rounded-lg border border-sky-200 bg-sky-50 p-2">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
+          <div class="rounded-lg border border-violet-200 bg-violet-50 p-2">Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} L/100</strong></div>
+          <div class="col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 p-2">Coût carburant / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2)} / km</strong></div><div class="col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2)} / jour • ${fmtEur(m.totalCostPerMonth,2)} / mois • ${fmtEur(m.totalCostPerKm,2)} / km</strong></div>
         </div>
         <div class="flex gap-2 flex-wrap">
           <button type="button" onclick="selectVehicleFromCard('${v.id}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer">Afficher le suivi</button>
