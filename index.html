@@ -46,7 +46,15 @@
     </div>
   </div>
 
-  <div id="authWrapper" class="hidden"></div>
+  <div id="authWrapper" class="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+    <div class="bg-white max-w-md w-full rounded-3xl shadow-lg p-8 text-center">
+      <div class="text-5xl mb-3">🚗</div><h1 class="text-2xl font-bold text-slate-900 mb-2">AutoTrack</h1>
+      <p class="text-sm text-slate-600 mb-6">Connectez-vous pour retrouver et synchroniser vos données automobiles.</p>
+      <button id="supabaseGoogleLogin" type="button" onclick="autoTrackGoogleLogin()" class="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-3">Continuer avec Google</button>
+      <p id="supabaseLoginStatus" class="text-xs text-slate-500 mt-4">Connexion sécurisée — données privées</p>
+      <button type="button" onclick="exportBackupJSON()" class="mt-5 text-xs text-blue-600 underline">Exporter les données locales (si disponibles)</button>
+    </div>
+  </div>
   <!-- ==================== APPLICATION PRINCIPALE ==================== -->
   <div id="appView">
     <!-- Barre supérieure -->
@@ -64,7 +72,8 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
-          <span id="oneDriveHeaderStatus" onclick="switchTab('backup')" title="État sauvegarde Google Drive" class="cursor-pointer text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">📁 Google Drive : Manuel</span>
+          <span id="oneDriveHeaderStatus" onclick="switchTab('backup')" title="État sauvegarde Supabase" class="cursor-pointer text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Supabase</span>
+          <button type="button" onclick="autoTrackLogout()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold">Déconnexion</button>
           
           <button type="button" onclick="triggerManualOrAutoSync()" title="Synchroniser ou télécharger la sauvegarde" aria-label="Sauvegarder"
             class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
@@ -92,7 +101,7 @@
     <main class="max-w-7xl mx-auto px-4 py-5">
       <!-- Bandeau de synchronisation -->
       <div id="unsavedBanner" class="hidden mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
-        <span>⚠️ Données modifiées localement. Enregistrez ou exportez <strong>autotrack_data.json</strong> vers Google Drive (<code>kr15m33r4@gmail.com</code>).</span>
+        <span>⚠️ Données modifiées localement. Enregistrez ou exportez <strong>autotrack_data.json</strong> vers Supabase / Export JSON (<code>kr15m33r4@gmail.com</code>).</span>
         <button type="button" onclick="exportBackupJSON()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer">Télécharger le JSON</button>
       </div>
 
@@ -316,11 +325,11 @@
       <!-- ==================== ONGLET 5 : SAUVEGARDE GOOGLE DRIVE ==================== -->
       <section id="tab-backup" class="hidden">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <!-- Carte Configuration Google Drive Auto-Save -->
+          <!-- Carte Configuration Supabase / Export JSON Auto-Save -->
           <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-5">
             <div class="flex items-center justify-between gap-2">
               <div>
-                <h3 class="text-base font-bold text-slate-900">📁 Sauvegarde Automatique Google Drive</h3>
+                <h3 class="text-base font-bold text-slate-900">📁 Sauvegarde Automatique Supabase / Export JSON</h3>
                 <p class="text-xs text-slate-500 mt-0.5">Compte cible : <strong id="gdriveTargetEmailDisplay" class="text-slate-800">kr15m33r4@gmail.com</strong></p>
               </div>
               <span id="googleDriveBadgeDetail" class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">En attente</span>
@@ -332,19 +341,19 @@
                 <span class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-semibold">Actif</span>
               </div>
               <p class="text-xs text-slate-600 leading-relaxed">
-                À chaque ajout, modification ou suppression d'un <strong>plein</strong>, le fichier de données mis à jour est enregistré localement et sauvegardé automatiquement sur Google Drive pour <strong>kr15m33r4@gmail.com</strong> (<code>AutoTrack/autotrack_data.json</code>).
+                À chaque ajout, modification ou suppression d'un <strong>plein</strong>, le fichier de données mis à jour est enregistré localement et sauvegardé automatiquement sur Supabase / Export JSON pour <strong>kr15m33r4@gmail.com</strong> (<code>AutoTrack/autotrack_data.json</code>).
               </p>
               <label class="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer pt-1">
                 <input type="checkbox" id="googleDriveAutoSyncToggle" checked onchange="toggleGoogleDriveAutoPref()" class="rounded text-blue-600" />
-                Sauvegarder automatiquement sur Google Drive dès qu'un nouveau plein est enregistré
+                Sauvegarder automatiquement sur Supabase / Export JSON dès qu'un nouveau plein est enregistré
               </label>
             </div>
 
-            <!-- Connexion Cloud Google Drive API -->
+            <!-- Connexion Cloud Supabase / Export JSON API -->
             <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-3">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900">1. Connexion Cloud Google Drive</h4>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900">1. Connexion Cloud Supabase / Export JSON</h4>
               <div>
-                <label for="gdriveEmailInput" class="block text-xs font-semibold text-slate-600 mb-1">Identifiant Google Drive</label>
+                <label for="gdriveEmailInput" class="block text-xs font-semibold text-slate-600 mb-1">Identifiant Supabase / Export JSON</label>
                 <input type="email" id="gdriveEmailInput" value="kr15m33r4@gmail.com" onchange="updateGoogleDriveEmailPref()"
                   class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:border-indigo-600" />
               </div>
@@ -352,12 +361,12 @@
                 <label for="googleClientIdInput" class="block text-xs font-semibold text-slate-600 mb-1">Client ID OAuth Google Cloud</label>
                 <input type="text" id="googleClientIdInput" placeholder="Ex: xxxxx.apps.googleusercontent.com"
                   class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:border-indigo-600" />
-                <p class="text-[11px] text-slate-500 mt-1">Permet l'envoi direct sur le compte Google Drive <code>kr15m33r4@gmail.com</code> (dossier <code>AutoTrack</code>).</p>
+                <p class="text-[11px] text-slate-500 mt-1">Permet l'envoi direct sur le compte Supabase / Export JSON <code>kr15m33r4@gmail.com</code> (dossier <code>AutoTrack</code>).</p>
               </div>
               <div class="flex flex-wrap gap-2 pt-1">
                 <button type="button" id="gdriveConnectBtn" onclick="connectGoogleDriveCloud()"
                   class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-                  📁 Connecter Google Drive
+                  📁 Connecter Supabase / Export JSON
                 </button>
                 <button type="button" id="gdriveSyncNowBtn" onclick="syncWithGoogleDriveCloud(true)" class="hidden px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer">
                   🔄 Sauvegarder maintenant
@@ -370,12 +379,12 @@
             </div>
           </div>
 
-          <!-- Carte Fichier Local Google Drive & Export/Import JSON -->
+          <!-- Carte Fichier Local Supabase / Export JSON & Export/Import JSON -->
           <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-5">
             <div class="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-3">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-sky-900">2. Fichier Direct dans le Dossier Google Drive (PC / Mac)</h4>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-sky-900">2. Fichier Direct dans le Dossier Supabase / Export JSON (PC / Mac)</h4>
               <p class="text-xs text-slate-600 leading-relaxed">
-                Liez directement votre fichier <code>autotrack_data.json</code> présent dans votre dossier Google Drive synchronisé : chaque nouveau plein met à jour ce fichier instantanément.
+                Liez directement votre fichier <code>autotrack_data.json</code> présent dans votre dossier Supabase / Export JSON synchronisé : chaque nouveau plein met à jour ce fichier instantanément.
               </p>
               <div class="flex flex-wrap gap-2">
                 <button type="button" onclick="linkLocalGoogleDriveFile()"
@@ -591,6 +600,7 @@
 <!-- Modal bénéfice -->
   <div id="benefitModal" class="hidden fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[150]"><div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4">Ajouter une rentrée d'argent</h3><form id="benefitForm" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Date</label><input id="bDate" type="date" required class="w-full px-3 py-2 rounded-xl border border-slate-300"></div><div><label class="block text-xs font-semibold mb-1">Montant (€)</label><input id="bAmount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 rounded-xl border border-slate-300"></div><div class="flex justify-end gap-2"><button type="button" onclick="closeModal('benefitModal')" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold">Enregistrer</button></div></form></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ==================== BASE INITIALE ====================
 const DEFAULT_DB = {
@@ -811,13 +821,11 @@ function saveDB(markDirty = true) {
   db.lastUpdated = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   if (markDirty) {
-    if (isAutoSyncActive()) {
-      autoPushToGoogleDrive();
-    } else {
-      document.getElementById("unsavedBanner").classList.remove("hidden");
-    }
+    document.getElementById("unsavedBanner")?.classList.remove("hidden");
+    scheduleSupabaseSave();
   }
 }
+
 
 // ==================== SAUVEGARDE AUTOMATIQUE GOOGLE DRIVE ====================
 const GDRIVE_PREFS_KEY = "autotrack_gdrive_prefs_v1";
@@ -863,7 +871,7 @@ function updateGoogleDriveUIStatus(statusLabel, detailText = "", isConnected = f
   const headerBadge = document.getElementById("oneDriveHeaderStatus");
   const detailBadge = document.getElementById("googleDriveBadgeDetail");
   if (headerBadge) {
-    headerBadge.textContent = isConnected ? `📁 Google Drive : ${statusLabel}` : "📁 Google Drive : Manuel";
+    headerBadge.textContent = isConnected ? `📁 Supabase / Export JSON : ${statusLabel}` : "📁 Supabase / Export JSON : Manuel";
     headerBadge.className = isConnected
       ? "cursor-pointer text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 hover:bg-emerald-500/30 px-3 py-1.5 rounded-full font-medium"
       : "cursor-pointer text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium";
@@ -917,7 +925,7 @@ async function restoreFileHandle() {
 
 async function linkLocalGoogleDriveFile() {
   if (!window.showOpenFilePicker && !window.showSaveFilePicker) {
-    showToast("Utilisez la connexion Google Drive ou téléchargez autotrack_data.json vers Google Drive (kr15m33r4@gmail.com).", "info");
+    showToast("Utilisez la connexion Supabase / Export JSON ou téléchargez autotrack_data.json vers Supabase / Export JSON (kr15m33r4@gmail.com).", "info");
     return;
   }
   try {
@@ -936,7 +944,7 @@ async function linkLocalGoogleDriveFile() {
     }
     const perm = await handle.requestPermission({ mode: "readwrite" });
     if (perm !== "granted") {
-      showToast("Permission d'écriture refusée sur le fichier Google Drive.", "error");
+      showToast("Permission d'écriture refusée sur le fichier Supabase / Export JSON.", "error");
       return;
     }
     localGoogleDriveFileHandle = handle;
@@ -957,7 +965,7 @@ async function linkLocalGoogleDriveFile() {
           populateVehicleSelector();
           populateUserSelects();
           refreshAllViews();
-          showToast("Données plus récentes chargées depuis votre fichier Google Drive.", "success");
+          showToast("Données plus récentes chargées depuis votre fichier Supabase / Export JSON.", "success");
         }
       }
     }
@@ -968,10 +976,10 @@ async function linkLocalGoogleDriveFile() {
     statusEl.classList.remove("hidden");
     document.getElementById("unlinkLocalFileBtn").classList.remove("hidden");
     updateGoogleDriveUIStatus("Auto (Fichier lié)", "", true);
-    showToast("Sauvegarde automatique Google Drive activée sur " + handle.name, "success");
+    showToast("Sauvegarde automatique Supabase / Export JSON activée sur " + handle.name, "success");
   } catch (err) {
     if (err.name !== "AbortError") {
-      showToast("Erreur liaison fichier Google Drive : " + err.message, "error");
+      showToast("Erreur liaison fichier Supabase / Export JSON : " + err.message, "error");
     }
   }
 }
@@ -986,7 +994,7 @@ async function writeToLocalGoogleDriveHandle() {
     updateGoogleDriveUIStatus(`Sauvegardé (${nowStr})`, "", true);
     return true;
   } catch (err) {
-    console.error("Erreur écriture Google Drive local:", err);
+    console.error("Erreur écriture Supabase / Export JSON local:", err);
     return false;
   }
 }
@@ -997,7 +1005,7 @@ async function unlinkLocalGoogleDriveFile() {
   document.getElementById("localFileStatusText").classList.add("hidden");
   document.getElementById("unlinkLocalFileBtn").classList.add("hidden");
   if (!googleDriveAccessToken) updateGoogleDriveUIStatus("Manuel", "", false);
-  showToast("Fichier local Google Drive délié.", "info");
+  showToast("Fichier local Supabase / Export JSON délié.", "info");
 }
 
 function toggleGoogleDriveAutoPref() {
@@ -1044,13 +1052,13 @@ async function connectGoogleDriveCloud(silent = false) {
         } else {
           const message = tokenResp?.error_description || tokenResp?.error || "Google n'a pas fourni de jeton d'accès.";
           updateGoogleDriveUIStatus("Connexion requise", "⚠️ " + message, false);
-          if (!silent) showToast("Connexion Google Drive impossible : " + message, "error");
+          if (!silent) showToast("Connexion Supabase / Export JSON impossible : " + message, "error");
         }
       },
       error_callback: (err) => {
         const message = err?.message || err?.type || "Erreur OAuth Google";
         updateGoogleDriveUIStatus("Connexion requise", "⚠️ " + message, false);
-        if (!silent) showToast("Connexion Google Drive impossible : " + message, "error");
+        if (!silent) showToast("Connexion Supabase / Export JSON impossible : " + message, "error");
       }
     });
     tokenClient.requestAccessToken({ prompt: silent ? "none" : "consent", login_hint: email });
@@ -1061,7 +1069,7 @@ async function connectGoogleDriveCloud(silent = false) {
 }
 
 async function googleDriveFetch(url, options = {}) {
-  if (!googleDriveAccessToken) throw new Error("Connexion Google Drive expirée. Reconnectez-vous.");
+  if (!googleDriveAccessToken) throw new Error("Connexion Supabase / Export JSON expirée. Reconnectez-vous.");
   const headers = new Headers(options.headers || {});
   headers.set("Authorization", `Bearer ${googleDriveAccessToken}`);
   const response = await fetch(url, { ...options, headers });
@@ -1070,12 +1078,12 @@ async function googleDriveFetch(url, options = {}) {
     document.getElementById("gdriveConnectBtn")?.classList.remove("hidden");
     document.getElementById("gdriveSyncNowBtn")?.classList.add("hidden");
     document.getElementById("gdriveDisconnectBtn")?.classList.add("hidden");
-    throw new Error("Jeton Google expiré ou révoqué. Cliquez sur « Connecter Google Drive » pour rétablir la connexion.");
+    throw new Error("Jeton Google expiré ou révoqué. Cliquez sur « Connecter Supabase / Export JSON » pour rétablir la connexion.");
   }
   if (!response.ok) {
     let detail = "";
     try { const errJson = await response.clone().json(); detail = errJson?.error?.message || errJson?.error_description || ""; } catch {}
-    throw new Error(`API Google Drive (HTTP ${response.status})${detail ? " : " + detail : ""}`);
+    throw new Error(`API Supabase / Export JSON (HTTP ${response.status})${detail ? " : " + detail : ""}`);
   }
   return response;
 }
@@ -1094,7 +1102,7 @@ async function ensureAutoTrackDriveFolder() {
     body: JSON.stringify({ name: "AutoTrack", mimeType: "application/vnd.google-apps.folder" })
   });
   const createJson = await createRes.json();
-  if (!createJson.id) throw new Error("Google Drive n'a pas retourné l'identifiant du dossier AutoTrack.");
+  if (!createJson.id) throw new Error("Supabase / Export JSON n'a pas retourné l'identifiant du dossier AutoTrack.");
   googleDriveFolderId = createJson.id;
   return googleDriveFolderId;
 }
@@ -1116,7 +1124,7 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
       const remoteTime = new Date(remoteData.lastUpdated || 0).getTime();
       const localTime = new Date(db.lastUpdated || 0).getTime();
       if (!remoteData || !Array.isArray(remoteData.vehicles) || !Array.isArray(remoteData.users)) {
-        throw new Error("Le fichier autotrack_data.json sur Google Drive n'a pas le format attendu. Aucune donnée locale n'a été remplacée.");
+        throw new Error("Le fichier autotrack_data.json sur Supabase / Export JSON n'a pas le format attendu. Aucune donnée locale n'a été remplacée.");
       }
       if (forceRemote || remoteTime > localTime) {
         db = remoteData;
@@ -1145,12 +1153,12 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
     }
     driveFileModifiedTime = new Date().toISOString();
     const email = getGoogleDrivePrefs().email || "kr15m33r4@gmail.com";
-    updateGoogleDriveUIStatus(`Drive OK (${nowStr})`, `✅ Sauvegardé sur Google Drive (${email}) à ${nowStr}`, true);
+    updateGoogleDriveUIStatus(`Drive OK (${nowStr})`, `✅ Sauvegardé sur Supabase / Export JSON (${email}) à ${nowStr}`, true);
     refreshAllViews();
   } catch (err) {
-    updateGoogleDriveUIStatus("Erreur Drive", "⚠️ Erreur sauvegarde Google Drive : " + (err.message || err), false);
-    console.error("AutoTrack Google Drive sync error:", err);
-    showToast("Erreur Google Drive : " + (err.message || err), "error");
+    updateGoogleDriveUIStatus("Erreur Drive", "⚠️ Erreur sauvegarde Supabase / Export JSON : " + (err.message || err), false);
+    console.error("AutoTrack Supabase / Export JSON sync error:", err);
+    showToast("Erreur Supabase / Export JSON : " + (err.message || err), "error");
   }
 }
 
@@ -1162,7 +1170,7 @@ async function disconnectGoogleDriveCloud() {
   document.getElementById("gdriveDisconnectBtn").classList.add("hidden");
   document.getElementById("gdriveSyncStatusText").classList.add("hidden");
   if (!localGoogleDriveFileHandle) updateGoogleDriveUIStatus("Manuel", "", false);
-  showToast("Compte Google Drive déconnecté.", "info");
+  showToast("Compte Supabase / Export JSON déconnecté.", "info");
 }
 
 let autoPushTimer = null;
@@ -1182,13 +1190,13 @@ async function triggerManualOrAutoSync() {
   if (localGoogleDriveFileHandle) {
     const ok = await writeToLocalGoogleDriveHandle();
     if (ok) {
-      showToast("Fichier Google Drive mis à jour automatiquement.", "success");
+      showToast("Fichier Supabase / Export JSON mis à jour automatiquement.", "success");
       return;
     }
   }
   if (googleDriveAccessToken) {
     await syncWithGoogleDriveCloud(true);
-    showToast("Sauvegarde Google Drive effectuée.", "success");
+    showToast("Sauvegarde Supabase / Export JSON effectuée.", "success");
     return;
   }
   exportBackupJSON();
@@ -1221,7 +1229,7 @@ function tryAutoConnectGoogleDrive() {
     localGoogleDriveFileHandle = savedHandle;
     const statusEl = document.getElementById("localFileStatusText");
     if (statusEl) {
-      statusEl.textContent = `📎 Fichier Google Drive mémorisé : ${savedHandle.name} (cliquez sur « Lier » si le navigateur demande la permission)`;
+      statusEl.textContent = `📎 Fichier Supabase / Export JSON mémorisé : ${savedHandle.name} (cliquez sur « Lier » si le navigateur demande la permission)`;
       statusEl.classList.remove("hidden");
     }
     document.getElementById("unlinkLocalFileBtn")?.classList.remove("hidden");
@@ -1391,7 +1399,7 @@ function logout() {
   document.getElementById("authWrapper").classList.remove("hidden");
   document.getElementById("loginForm").reset();
   toggleAuthMode("login");
-  showToast("Déconnexion effectuée. Les données locales seront rechargées depuis Google Drive à la prochaine connexion.", "success");
+  showToast("Déconnexion effectuée. Les données locales seront rechargées depuis Supabase / Export JSON à la prochaine connexion.", "success");
 }
 
 function initAppAfterLogin() {
@@ -1983,9 +1991,9 @@ document.getElementById("fuelForm").addEventListener("submit", (e) => {
   refreshAllViews();
   if (isAutoSyncActive()) {
     autoPushToGoogleDrive();
-    showToast("Plein enregistré — sauvegarde automatique Google Drive (kr15m33r4@gmail.com) lancée.", "success");
+    showToast("Plein enregistré — sauvegarde automatique Supabase / Export JSON (kr15m33r4@gmail.com) lancée.", "success");
   } else {
-    showToast("Plein enregistré. Configurez la sauvegarde Google Drive dans l'onglet « Sauvegarde » pour l'envoi auto.", "info");
+    showToast("Plein enregistré. Configurez la sauvegarde Supabase / Export JSON dans l'onglet « Sauvegarde » pour l'envoi auto.", "info");
   }
 });
 
@@ -2755,15 +2763,91 @@ function closeModal(id) {
   document.getElementById(id).classList.add("hidden");
 }
 
-// Démarrage sans écran de connexion : espace local unique.
-currentUser = db.users[0] || { id: "local_user", username: "local", displayName: "Utilisateur" };
-if (!db.users.length) db.users.push(currentUser);
-db.vehicles.forEach(v => { if (!v.ownerId) v.ownerId = currentUser.id; });
-activeVehicleId = db.vehicles[0]?.id || null;
-document.getElementById("authWrapper")?.classList.add("hidden");
-document.getElementById("appView")?.classList.remove("hidden");
-document.getElementById("currentUserBadge")?.classList.add("hidden");
-initAppAfterLogin();
+// Démarrage avec authentification Google et synchronisation Supabase.
+const AUTOTRACK_SUPABASE_URL = "https://zqirygiwqmtfykianplr.supabase.co";
+const AUTOTRACK_SUPABASE_KEY = "sb_publishable_dsKuoK6SVDXkz4D_FBqNVQ_1dTe2h8d";
+const AUTOTRACK_BUCKET = "autotrack-data";
+let supabaseClient = null, supabaseUser = null, supabaseSaveTimer = null, cloudFilePath = null;
+
+function getCloudFileName(email) {
+  const localPart = (email || "autotrack").split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "_");
+  return localPart + ".json";
+}
+function scheduleSupabaseSave() {
+  if (!supabaseClient || !supabaseUser || !cloudFilePath) return;
+  clearTimeout(supabaseSaveTimer);
+  supabaseSaveTimer = setTimeout(() => uploadAutoTrackData(), 1200);
+}
+async function uploadAutoTrackData() {
+  if (!supabaseClient || !supabaseUser || !cloudFilePath) return;
+  try {
+    const payload = JSON.stringify(db, null, 2);
+    const { error } = await supabaseClient.storage.from(AUTOTRACK_BUCKET).upload(cloudFilePath, new Blob([payload], {type:"application/json"}), {upsert:true, contentType:"application/json"});
+    if (error) throw error;
+    document.getElementById("unsavedBanner")?.classList.add("hidden");
+    const badge=document.getElementById("oneDriveHeaderStatus"); if(badge) badge.textContent="☁️ Supabase : synchronisé";
+  } catch (e) {
+    console.error("Supabase AutoTrack upload",e);
+    const badge=document.getElementById("oneDriveHeaderStatus"); if(badge) badge.textContent="⚠️ Erreur Supabase";
+    showToast("Erreur de sauvegarde Supabase : "+(e.message||e),"error");
+  }
+}
+async function autoTrackGoogleLogin() {
+  if (!supabaseClient) return;
+  const {error}=await supabaseClient.auth.signInWithOAuth({provider:"google", options:{redirectTo:window.location.href.split("#")[0]}});
+  if(error) showToast("Connexion Google : "+error.message,"error");
+}
+async function autoTrackLogout() {
+  if (supabaseClient) await supabaseClient.auth.signOut();
+  supabaseUser=null; currentUser=null; cloudFilePath=null;
+  document.getElementById("appView")?.classList.add("hidden");
+  document.getElementById("authWrapper")?.classList.remove("hidden");
+}
+async function handleSupabaseSession(session) {
+  if (!session?.user) {
+    supabaseUser=null; currentUser=null;
+    document.getElementById("appView")?.classList.add("hidden");
+    document.getElementById("authWrapper")?.classList.remove("hidden");
+    return;
+  }
+  supabaseUser=session.user;
+  cloudFilePath=supabaseUser.id+"/"+getCloudFileName(supabaseUser.email);
+  const status=document.getElementById("supabaseLoginStatus"); if(status) status.textContent="Connexion à votre espace…";
+  try {
+    const {data,error}=await supabaseClient.storage.from(AUTOTRACK_BUCKET).download(cloudFilePath);
+    if(!error && data) {
+      const remote=JSON.parse(await data.text());
+      if(!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Fichier cloud invalide. Import interrompu.");
+      db=remote; localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+    } else if (error && (error.statusCode === "404" || error.status === 404 || error.message?.toLowerCase().includes("not found"))) {
+      // Premier accès : conserver les données locales et créer le fichier cloud.
+      if(!Array.isArray(db.users)) db.users=[];
+      if(!Array.isArray(db.vehicles)) db.vehicles=[];
+      await uploadAutoTrackData();
+    } else if(error) throw error;
+  } catch(e) { showToast("Chargement Supabase impossible : "+(e.message||e),"error"); }
+  currentUser={id:supabaseUser.id,username:supabaseUser.email||"google",displayName:supabaseUser.user_metadata?.full_name||supabaseUser.email||"Utilisateur"};
+  // Conserver les owners existants; rattacher les éléments sans owner à ce compte lors de la migration.
+  db.users=[currentUser]; db.vehicles.forEach(v=>{if(!v.ownerId)v.ownerId=currentUser.id;});
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+  activeVehicleId=db.vehicles[0]?.id||null;
+  document.getElementById("authWrapper")?.classList.add("hidden");
+  document.getElementById("appView")?.classList.remove("hidden");
+  const badge=document.getElementById("currentUserBadge"); if(badge) badge.textContent="👤 "+currentUser.displayName;
+  initAppAfterLogin();
+  const cloudBadge=document.getElementById("oneDriveHeaderStatus"); if(cloudBadge) cloudBadge.textContent="☁️ Supabase : connecté";
+}
+(async function autoTrackSupabaseBoot(){
+  try {
+    const lib=window.supabase;
+    if(!lib?.createClient) throw new Error("Bibliothèque Supabase indisponible");
+    supabaseClient=lib.createClient(AUTOTRACK_SUPABASE_URL,AUTOTRACK_SUPABASE_KEY);
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    await handleSupabaseSession(session);
+    supabaseClient.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>handleSupabaseSession(session),0);});
+  } catch(e) { const status=document.getElementById("supabaseLoginStatus"); if(status) status.textContent="Initialisation impossible : "+e.message; console.error(e); }
+})();
+
 </script>
 </body>
 </html>
