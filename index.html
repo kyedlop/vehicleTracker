@@ -73,10 +73,10 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
-          <span id="oneDriveHeaderStatus" onclick="switchTab('backup')" title="État sauvegarde Supabase" class="cursor-pointer text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Supabase</span>
+          <span id="oneDriveHeaderStatus" title="État de synchronisation Supabase" class="cursor-default text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Supabase</span>
           <button type="button" onclick="autoTrackLogout()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold">Déconnexion</button>
           
-          <button type="button" onclick="triggerManualOrAutoSync()" title="Synchroniser ou télécharger la sauvegarde" aria-label="Sauvegarder"
+          <button type="button" onclick="triggerManualOrAutoSync()" title="Télécharger une copie de sécurité JSON" aria-label="Télécharger une copie de sécurité"
             class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
             💾
           </button>
@@ -94,7 +94,6 @@
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="expenses-details" onclick="switchTab('expenses-details')">📉 Dépenses</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="benefits" onclick="switchTab('benefits')">💶 Bénéfices</button>
         <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="vehicles" onclick="switchTab('vehicles')">🚘 Véhicules</button>
-        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="backup" onclick="switchTab('backup')">💾 Sauvegarde</button>
       </div>
     </nav>
 
@@ -323,97 +322,7 @@
         </div>
       </section>
 
-      <!-- ==================== ONGLET 5 : SAUVEGARDE GOOGLE DRIVE ==================== -->
-      <section id="tab-backup" class="hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <!-- Carte Configuration Supabase / Export JSON Auto-Save -->
-          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-5">
-            <div class="flex items-center justify-between gap-2">
-              <div>
-                <h3 class="text-base font-bold text-slate-900">📁 Sauvegarde Automatique Supabase / Export JSON</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Compte cible : <strong id="gdriveTargetEmailDisplay" class="text-slate-800">kr15m33r4@gmail.com</strong></p>
-              </div>
-              <span id="googleDriveBadgeDetail" class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">En attente</span>
-            </div>
-
-            <div class="p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-3">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-blue-900">Déclenchement automatique sur nouveau plein</span>
-                <span class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-semibold">Actif</span>
-              </div>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                À chaque ajout, modification ou suppression d'un <strong>plein</strong>, le fichier de données mis à jour est enregistré localement et sauvegardé automatiquement sur Supabase / Export JSON pour <strong>kr15m33r4@gmail.com</strong> (<code>AutoTrack/autotrack_data.json</code>).
-              </p>
-              <label class="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer pt-1">
-                <input type="checkbox" id="googleDriveAutoSyncToggle" checked onchange="toggleGoogleDriveAutoPref()" class="rounded text-blue-600" />
-                Sauvegarder automatiquement sur Supabase / Export JSON dès qu'un nouveau plein est enregistré
-              </label>
-            </div>
-
-            <!-- Connexion Cloud Supabase / Export JSON API -->
-            <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-3">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900">1. Connexion Cloud Supabase / Export JSON</h4>
-              <div>
-                <label for="gdriveEmailInput" class="block text-xs font-semibold text-slate-600 mb-1">Identifiant Supabase / Export JSON</label>
-                <input type="email" id="gdriveEmailInput" value="kr15m33r4@gmail.com" onchange="updateGoogleDriveEmailPref()"
-                  class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:border-indigo-600" />
-              </div>
-              <div>
-                <label for="googleClientIdInput" class="block text-xs font-semibold text-slate-600 mb-1">Client ID OAuth Google Cloud</label>
-                <input type="text" id="googleClientIdInput" placeholder="Ex: xxxxx.apps.googleusercontent.com"
-                  class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:border-indigo-600" />
-                <p class="text-[11px] text-slate-500 mt-1">Permet l'envoi direct sur le compte Supabase / Export JSON <code>kr15m33r4@gmail.com</code> (dossier <code>AutoTrack</code>).</p>
-              </div>
-              <div class="flex flex-wrap gap-2 pt-1">
-                <button type="button" id="gdriveConnectBtn" onclick="connectGoogleDriveCloud()"
-                  class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-                  📁 Connecter Supabase / Export JSON
-                </button>
-                <button type="button" id="gdriveSyncNowBtn" onclick="syncWithGoogleDriveCloud(true)" class="hidden px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer">
-                  🔄 Sauvegarder maintenant
-                </button>
-                <button type="button" id="gdriveDisconnectBtn" onclick="disconnectGoogleDriveCloud()" class="hidden px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer">
-                  Déconnecter
-                </button>
-              </div>
-              <p id="gdriveSyncStatusText" class="text-xs text-indigo-900 font-medium hidden"></p>
-            </div>
-          </div>
-
-          <!-- Carte Fichier Local Supabase / Export JSON & Export/Import JSON -->
-          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-5">
-            <div class="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-3">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-sky-900">2. Fichier Direct dans le Dossier Supabase / Export JSON (PC / Mac)</h4>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Liez directement votre fichier <code>autotrack_data.json</code> présent dans votre dossier Supabase / Export JSON synchronisé : chaque nouveau plein met à jour ce fichier instantanément.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" onclick="linkLocalGoogleDriveFile()"
-                  class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-                  🔗 Lier autotrack_data.json
-                </button>
-                <button type="button" id="unlinkLocalFileBtn" onclick="unlinkLocalGoogleDriveFile()" class="hidden px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer">
-                  Délier
-                </button>
-              </div>
-              <p id="localFileStatusText" class="text-xs text-sky-800 font-medium hidden"></p>
-            </div>
-
-            <div class="pt-2 border-t border-slate-200 space-y-2.5">
-              <h4 class="text-sm font-bold text-slate-800">📂 Sauvegarde Manuelle & Importation JSON</h4>
-              <p id="lastBackupTimestampText" class="text-xs text-slate-500">Dernière mise à jour locale : —</p>
-              <button type="button" onclick="exportBackupJSON()"
-                class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-                ⬇️ Télécharger autotrack_data.json
-              </button>
-              <label class="w-full py-2.5 px-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 text-slate-700 text-xs sm:text-sm font-semibold text-center transition cursor-pointer block">
-                ⬆️ Importer un fichier autotrack_data.json
-                <input type="file" id="syncImportFile" accept=".json" class="hidden" />
-              </label>
-            </div>
-          </div>
-        </div>
-      </section>
+      
     </main>
   </div>
 
@@ -2774,7 +2683,7 @@ function switchTab(tabName) {
     b.classList.toggle("border-transparent", !active);
     b.classList.toggle("text-slate-500", !active);
   });
-  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles", "backup"].forEach(t => {
+  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles"].forEach(t => {
     const el = document.getElementById("tab-" + t);
     if (el) el.classList.toggle("hidden", t !== tabName);
   });
@@ -2786,17 +2695,6 @@ function switchTab(tabName) {
   if (tabName === "fuel-details") renderFuelDetailsTab();
   if (tabName === "expenses-details") renderExpenseDetailsTab();
   if (tabName === "benefits") renderBenefitsTab();
-  if (tabName === "backup") {
-    const prefs = getGoogleDrivePrefs();
-    const emailInput = document.getElementById("gdriveEmailInput");
-    const emailDisp = document.getElementById("gdriveTargetEmailDisplay");
-    if (emailInput) emailInput.value = prefs.email || "kr15m33r4@gmail.com";
-    if (emailDisp) emailDisp.textContent = prefs.email || "kr15m33r4@gmail.com";
-    const tsEl = document.getElementById("lastBackupTimestampText");
-    if (tsEl && db.lastUpdated) {
-      tsEl.textContent = "Dernière mise à jour locale : " + new Date(db.lastUpdated).toLocaleString("fr-FR");
-    }
-  }
 }
 
 function openAccountSecurityModal() { return; }
