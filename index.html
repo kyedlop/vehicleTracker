@@ -1167,6 +1167,9 @@ function initDemoGuestMode() {
  populateVehicleSelector();
  applyLanguageToDOM();
  refreshAllViews();
+ if (typeof loadSampleDemoData === "function") {
+ loadSampleDemoData();
+ }
 }
 
 function loadDB() {
@@ -2982,8 +2985,100 @@ async function handleSupabaseSession(session) {
 }
 window.autoTrackGoogleLogin = autoTrackGoogleLogin;
 
+
+const SAMPLE_JSON_URL = "sample.json";
+let sampleDataPromise = null;
+
+function extractDemoVehicleFromPayload(payload) {
+ if (!payload || typeof payload !== "object") return null;
+ const vehicles = Array.isArray(payload.vehicles) ? payload.vehicles : [];
+ const candidate =
+ vehicles.find(v => v && (v.isDemo === true || v.id === "v_demo" || v.id === "v_kimberly")) ||
+ vehicles[0] ||
+ null;
+ if (!candidate || typeof candidate !== "object") return null;
+
+ const base = createDemoVehicleTemplate();
+ const fuelLogs = Array.isArray(candidate.fuelLogs) && candidate.fuelLogs.length > 0
+ ? candidate.fuelLogs
+ : base.fuelLogs;
+ const expenses = Array.isArray(candidate.expenses) && candidate.expenses.length > 0
+ ? candidate.expenses.map(e => ({ ...e, info: cleanDemoExpenseText(e.info || e.description || "") }))
+ : base.expenses;
+ const benefits = Array.isArray(candidate.benefits) && candidate.benefits.length > 0
+ ? candidate.benefits
+ : base.benefits;
+
+ const rawName = String(candidate.name || base.name || "Véhicule Démo").trim();
+ const cleanName = (!rawName || /kimberly/i.test(rawName)) ? "Véhicule Démo" : rawName;
+
+ return {
+ ...base,
+ ...candidate,
+ id: "v_demo",
+ ownerId: null,
+ isDemo: true,
+ isUserCreated: false,
+ name: cleanName,
+ currency: candidate.currency || payload.defaultCurrency || base.currency || "EUR",
+ fuelLogs,
+ expenses,
+ benefits
+ };
+}
+
+async function loadSampleDemoData(forceReload = false) {
+ if (sampleDataPromise && !forceReload) return sampleDataPromise;
+ sampleDataPromise = (async () => {
+ try {
+ const sep = SAMPLE_JSON_URL.includes("?") ? "&" : "?";
+ const res = await fetch(`${SAMPLE_JSON_URL}${sep}_t=${Date.now()}`, { cache: "no-store" });
+ if (!res.ok) throw new Error(`HTTP ${res.status}`);
+ const parsed = await res.json();
+ const demoVeh = extractDemoVehicleFromPayload(parsed);
+ if (!demoVeh) return null;
+
+ if (parsed && typeof parsed === "object") {
+ if (!currentUser && parsed.defaultLanguage) {
+ db.defaultLanguage = normalizeLangCode(parsed.defaultLanguage);
+ }
+ if (parsed.defaultCurrency) {
+ db.defaultCurrency = String(parsed.defaultCurrency).toUpperCase();
+ }
+ if (parsed.lastUpdated && (!db.lastUpdated || !currentUser)) {
+ db.lastUpdated = parsed.lastUpdated;
+ }
+ }
+
+ if (!Array.isArray(db.vehicles)) db.vehicles = [];
+ const demoIdx = db.vehicles.findIndex(v => v && (v.id === "v_demo" || v.id === "v_kimberly" || v.isDemo === true));
+ if (demoIdx === -1) {
+ db.vehicles.unshift(demoVeh);
+ } else {
+ db.vehicles[demoIdx] = demoVeh;
+ }
+
+ if (!currentUser) {
+ activeVehicleId = demoVeh.id;
+ populateVehicleSelector();
+ applyLanguageToDOM();
+ refreshAllViews();
+ } else {
+ populateVehicleSelector();
+ refreshAllViews();
+ }
+ return demoVeh;
+ } catch (err) {
+ console.warn("Impossible de charger sample.json, repli sur le modèle démo intégré :", err);
+ return null;
+ }
+ })();
+ return sampleDataPromise;
+}
+
 (async function autoTrackSupabaseBoot(){
  initDemoGuestMode();
+ await loadSampleDemoData();
  try {
  const lib = window.supabase;
  if (!lib?.createClient) return;
