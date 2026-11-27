@@ -2,560 +2,3278 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AutoTrack — Suivi Véhicules</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AutoTrack" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>AutoTrack — Suivi Automobile & Valeur</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    #vehicleSelect option { color: #0f172a; background: #ffffff; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    .chart-box {
+      position: relative;
+      height: 270px;
+      width: 100%;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
-  <div id="app" class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- En-tête -->
-    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-white">AutoTrack</h1>
-        <p id="sync-status" class="text-xs text-emerald-400 mt-0.5">Données sauvegardées</p>
+<body class="bg-slate-100 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- ==================== BOÎTE DE NOTIFICATION ==================== -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[200] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- MODALE DE CONFIRMATION PERSONNALISÉE -->
+  <div id="confirmModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[150]">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+      <h3 id="confirmTitle" class="text-lg font-bold text-slate-900 mb-2">Confirmation</h3>
+      <p id="confirmMessage" class="text-sm text-slate-600 mb-6"></p>
+      <div class="flex justify-end gap-3">
+        <button id="confirmCancelBtn" type="button" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Annuler</button>
+        <button id="confirmOkBtn" type="button" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ÉCRAN DE CONNEXION ==================== -->
+  <div id="authWrapper" class="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+    <div class="bg-white max-w-md w-full rounded-3xl shadow-lg p-8 text-center">
+      <div class="text-5xl mb-3">🚗</div>
+      <h1 id="authTitle" class="text-2xl font-bold text-slate-900 mb-2">AutoTrack</h1>
+      <p id="authSubtitle" class="text-sm text-slate-600 mb-5">Connectez-vous pour retrouver et synchroniser vos données automobiles.</p>
+
+      <div class="text-left mb-5">
+        <label id="authLangLabel" for="loginLanguageSelect" class="block text-xs font-semibold text-slate-600 mb-1">Langue / Language</label>
+        <select id="loginLanguageSelect" onchange="onLanguageChange(this.value)"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:border-blue-600">
+        </select>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="btn-add-vehicle" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-medium border border-slate-700">
-          + Véhicule
-        </button>
-        <button id="btn-add-refuel" class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white">
-          + Plein / Charge
-        </button>
-        <button id="btn-open-profile" class="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-sm font-medium border border-slate-700 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span id="header-user-name">Profil</span>
-        </button>
+      <button id="supabaseGoogleLogin" type="button" onclick="autoTrackGoogleLogin()" class="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-3 cursor-pointer">Continuer avec Google</button>
+      <p id="supabaseLoginStatus" class="text-xs text-slate-500 mt-4">Connexion sécurisée — données privées</p>
+      <button id="authExportBtn" type="button" onclick="exportBackupJSON()" class="mt-5 text-xs text-blue-600 underline cursor-pointer">Exporter les données locales (si disponibles)</button>
+    </div>
+  </div>
+
+  <!-- ==================== APPLICATION PRINCIPALE ==================== -->
+  <div id="appView" class="hidden">
+    <!-- Barre supérieure -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+      <div class="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <span class="text-xl">🚗</span>
+          <select id="vehicleSelect" aria-label="Sélectionner un véhicule"
+            class="bg-white/10 text-white border border-white/20 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:border-blue-400 min-w-[180px]">
+          </select>
+          <button id="headerAddVehicleBtn" type="button" onclick="openVehicleModal()"
+            class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
+            + Véhicule
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="oneDriveHeaderStatus" title="État de sauvegarde" class="cursor-default text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Données sauvegardées</span>
+          <button type="button" id="profileHeaderBtn" onclick="openProfileModal()" title="Mon profil" aria-label="Mon profil"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold transition cursor-pointer">
+            <img id="headerProfileAvatar" src="" alt="Avatar" class="hidden w-6 h-6 rounded-full object-cover border border-white/30" />
+            <span id="headerProfileInitials" class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold">👤</span>
+            <span id="headerProfileShortName" class="hidden sm:inline max-w-[120px] truncate">Profil</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Sélecteur de véhicule -->
-    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <label for="vehicle-select" class="text-sm text-slate-400">Véhicule actif :</label>
-        <select id="vehicle-select" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"></select>
-        <button id="btn-edit-vehicle" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-          Modifier le véhicule
-        </button>
+    <!-- Navigation par onglets -->
+    <nav class="bg-white border-b border-slate-200 px-4 overflow-x-auto no-scrollbar">
+      <div class="max-w-7xl mx-auto flex gap-1 sm:gap-2">
+        <button type="button" class="tab-btn active border-b-2 border-blue-600 text-blue-600 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="quick" onclick="switchTab('quick')">⚡ Accès Rapide</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Tableau de bord</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="fuel-details" onclick="switchTab('fuel-details')">📈 Pleins & Conso</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="expenses-details" onclick="switchTab('expenses-details')">📉 Dépenses</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="benefits" onclick="switchTab('benefits')">💶 Bénéfices</button>
+        <button type="button" class="tab-btn border-b-2 border-transparent text-slate-500 hover:text-slate-800 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition cursor-pointer" data-tab="vehicles" onclick="switchTab('vehicles')">🚘 Véhicules</button>
       </div>
-      <div id="vehicle-meta" class="text-xs text-slate-400 flex flex-wrap gap-3"></div>
-    </section>
+    </nav>
 
-    <!-- Indicateurs clés -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-xs text-slate-400">Consommation moyenne</div>
-        <div id="kpi-avg-conso" class="text-2xl font-bold text-white mt-1">—</div>
-        <div id="kpi-conso-unit" class="text-xs text-slate-500 mt-1">Unité selon motorisation</div>
+    <!-- Contenu principal -->
+    <main class="max-w-7xl mx-auto px-4 py-5">
+      <!-- Bandeau de synchronisation -->
+      <div id="unsavedBanner" class="hidden mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
+        <span id="unsavedBannerText">⚠️ Données modifiées localement. Enregistrez ou exportez <strong>autotrack_data.json</strong> pour garder une copie locale.</span>
+        <button id="unsavedDownloadBtn" type="button" onclick="exportBackupJSON()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer">Télécharger le JSON</button>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-xs text-slate-400">Dernière consommation</div>
-        <div id="kpi-last-conso" class="text-2xl font-bold text-white mt-1">—</div>
-        <div class="text-xs text-slate-500 mt-1">Sur le dernier plein / charge complet</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-xs text-slate-400">Total énergie / carburant</div>
-        <div id="kpi-total-cost" class="text-2xl font-bold text-white mt-1">—</div>
-        <div id="kpi-currency-label" class="text-xs text-slate-500 mt-1">Devise du véhicule</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div class="text-xs text-slate-400">Kilométrage actuel</div>
-        <div id="kpi-odometer" class="text-2xl font-bold text-white mt-1">—</div>
-        <div class="text-xs text-slate-500 mt-1">Dernier relevé enregistré</div>
-      </div>
-    </section>
 
-    <!-- Historique des pleins / charges -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-        <h2 class="font-semibold text-white">Historique des pleins et recharges</h2>
-        <span id="refuel-count" class="text-xs text-slate-400">0 entrée</span>
+      <!-- Bannière véhicule actif -->
+      <div id="vehicleBanner" class="hidden"></div>
+
+      <!-- État vide si aucun véhicule -->
+      <div id="emptyVehicleState" class="hidden bg-white rounded-2xl p-8 text-center shadow-xs border border-slate-200 mb-6">
+        <div class="text-4xl mb-3">🚘</div>
+        <h3 id="emptyTitle" class="text-lg font-bold text-slate-900 mb-1">Aucun véhicule sélectionné</h3>
+        <p id="emptyDesc" class="text-sm text-slate-500 mb-4">Ajoutez votre véhicule (marque, modèle, année, puissance, carburant, devise) pour commencer le suivi.</p>
+        <button id="emptyAddBtn" type="button" onclick="openVehicleModal()" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition cursor-pointer">+ Ajouter mon véhicule</button>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-950/60 text-slate-400 text-xs uppercase">
-            <tr>
-              <th class="py-3 px-4">Date</th>
-              <th class="py-3 px-4">Type</th>
-              <th class="py-3 px-4">Km</th>
-              <th class="py-3 px-4">Quantité</th>
-              <th class="py-3 px-4">Montant</th>
-              <th id="th-conso" class="py-3 px-4">Conso</th>
-            </tr>
-          </thead>
-          <tbody id="refuel-table-body" class="divide-y divide-slate-800/80"></tbody>
-        </table>
-      </div>
-    </section>
+
+      <!-- ACCÈS RAPIDE -->
+      <section id="tab-quick" class="space-y-4">
+        <p id="quickUpdated" class="text-xs text-slate-500 text-left"></p>
+        <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button id="quickBtnFuel" onclick="openFuelModal()" class="p-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow cursor-pointer">⛽ + Plein</button>
+            <button id="quickBtnExpense" onclick="openExpenseModal()" class="p-5 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white text-lg font-bold shadow cursor-pointer">🧾 + Dépense</button>
+            <button id="quickBtnBenefit" onclick="openBenefitModal()" class="p-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold shadow cursor-pointer">💶 + Bénéfice</button>
+          </div>
+        </div>
+        <div id="quickVehicleCard" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="quickOilCard" class="bg-amber-100 rounded-2xl p-5 shadow-xs border border-amber-300"></div>
+          <div id="quickInspectionCard" class="bg-sky-100 rounded-2xl p-5 shadow-xs border border-sky-300"></div>
+        </div>
+      </section>
+
+      <!-- ==================== ONGLET 1 : TABLEAU DE BORD ==================== -->
+      <section id="tab-dashboard" class="hidden">
+        <div id="kpiGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+            <h3 id="dashConsoTitle" class="text-base font-bold text-slate-900 mb-4">⛽ Consommation</h3>
+            <div class="chart-box"><canvas id="consoChart"></canvas></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+            <h3 id="dashValueTitle" class="text-base font-bold text-slate-900 mb-4">📉 Décote & Valeur Résiduelle</h3>
+            <div class="chart-box"><canvas id="valueChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <h3 id="dashOilTitle" class="text-base font-bold text-slate-900">🛠️ Historique des vidanges et entretiens</h3>
+              <span id="oilChangeCount" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700"></span>
+            </div>
+            <div class="chart-box overflow-y-auto overflow-x-auto pr-1">
+              <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
+                <thead class="sticky top-0 bg-slate-50 z-10">
+                  <tr class="text-slate-500 uppercase text-[10px] border-b border-slate-200">
+                    <th class="py-2 px-2">Date</th>
+                    <th class="py-2 px-2">Kilométrage</th>
+                    <th class="py-2 px-2">Description</th>
+                    <th class="py-2 px-2 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody id="oilChangeTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 id="dashGapTitle" class="text-base font-bold text-slate-900">📊 Évolution de l'écart Bénéfices − Coût</h3>
+              <span id="dashboardBenefitBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700"></span>
+            </div>
+            <div class="chart-box"><canvas id="dashboardBenefitGapChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== PAGE : DÉTAILS CARBURANT ==================== -->
+      <section id="tab-fuel-details" class="hidden space-y-5">
+        <div id="fuelDetailsKpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 id="fuelChartTitle" class="text-base font-bold text-slate-900">📈 Historique Consommation</h3>
+              <p id="fuelChartSubtitle" class="text-xs text-slate-500">Analysez vos variations de consommation et du prix unitaire selon vos filtres.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <select id="fuelDetailPeriod" onchange="renderFuelDetailsTab()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white font-medium">
+                <option value="all">Tous les relevés</option>
+                <option value="10">10 derniers pleins</option>
+                <option value="20">20 derniers pleins</option>
+                <option value="30">30 derniers pleins</option>
+                <option value="2026">Année 2026</option>
+                <option value="2025">Année 2025</option>
+                <option value="2024">Année 2024</option>
+              </select>
+              <select id="fuelDetailTypeFilter" onchange="renderFuelDetailsTab()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white font-medium">
+                <option value="ALL">Tous carburants</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-box" style="height:310px;"><canvas id="fuelDetailsComboChart"></canvas></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 id="fuelHistoryTitle" class="text-base font-bold text-slate-900">📋 Historique</h3>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+              <input type="text" id="fuelDetailSearch" placeholder="Recherche (date, km...)" oninput="renderFuelDetailsTable()"
+                class="flex-1 sm:w-64 px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-blue-600" />
+              <select id="fuelDetailSort" onchange="renderFuelDetailsTable()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white font-medium">
+                <option value="date_desc">Tri : Date (récent → ancien)</option>
+                <option value="date_asc">Tri : Date (ancien → récent)</option>
+                <option value="conso_asc">Tri : Conso (meilleure → pire)</option>
+                <option value="conso_desc">Tri : Conso (pire → meilleure)</option>
+                <option value="odo_desc">Tri : Kilométrage (décroissant)</option>
+                <option value="cost_desc">Tri : Montant (décroissant)</option>
+              </select>
+              <button id="fuelAddBtn" type="button" onclick="openFuelModal()"
+                class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
+                + Ajouter un plein
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200">
+                  <th class="py-3 px-3">Date</th>
+                  <th class="py-3 px-3">Jours</th>
+                  <th class="py-3 px-3">Compteur / km</th>
+                  <th class="py-3 px-3">Distance (km)</th>
+                  <th class="py-3 px-3">Quantité</th>
+                  <th class="py-3 px-3">Prix/unité</th>
+                  <th class="py-3 px-3">Montant</th>
+                  <th class="py-3 px-3">Conso</th>
+                  <th class="py-3 px-3">Prix/km</th>
+                  <th class="py-3 px-3">Coût/100 km</th>
+                  <th class="py-3 px-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="fuelDetailsTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== PAGE : DÉTAILS DÉPENSES ==================== -->
+      <section id="tab-expenses-details" class="hidden space-y-5">
+        <div id="expenseDetailsKpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+            <h3 id="expCatChartTitle" class="text-base font-bold text-slate-900 mb-4">🧩 Répartition par Catégorie</h3>
+            <div class="chart-box" style="height:290px;"><canvas id="expenseCategoryChart"></canvas></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+            <h3 id="expYearChartTitle" class="text-base font-bold text-slate-900 mb-4">📅 Évolution Annuelle des Dépenses</h3>
+            <div class="chart-box" style="height:290px;"><canvas id="expenseMonthlyChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 id="expHistoryTitle" class="text-base font-bold text-slate-900">🧾 Historique des Dépenses</h3>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+              <input type="text" id="expenseSearch" placeholder="Rechercher (Assurance, Toyota, Péage...)" oninput="renderExpenseTable()"
+                class="flex-1 sm:w-60 px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-blue-600" />
+              <button id="expAddBtn" type="button" onclick="openExpenseModal()"
+                class="px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
+                + Ajouter une dépense
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200">
+                  <th class="py-3 px-3">Date</th>
+                  <th class="py-3 px-3">Catégorie</th>
+                  <th class="py-3 px-3">Compteur (km)</th>
+                  <th class="py-3 px-3">Distance</th>
+                  <th class="py-3 px-3">Montant</th>
+                  <th class="py-3 px-3">Description / Infos</th>
+                  <th class="py-3 px-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expenseTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== PAGE : BÉNÉFICES ==================== -->
+      <section id="tab-benefits" class="hidden space-y-5">
+        <div id="benefitKpis" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <h3 id="benChartTitle" class="text-base font-bold text-slate-900 mb-1">📈 Évolution de l'écart Bénéfices − Coût</h3>
+          <p id="benefitForecastText" class="text-xs text-slate-500 mb-4">Historique de l'écart et estimation de la date d'équilibre.</p>
+          <div class="chart-box" style="height:310px"><canvas id="benefitHistoryChart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 id="benHistoryTitle" class="text-base font-bold text-slate-900">📋 Historique des bénéfices</h3>
+            <button id="benAddBtn" type="button" onclick="openBenefitModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold cursor-pointer">+ Ajouter une ligne</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200">
+                  <th class="py-3 px-3">Date</th>
+                  <th class="py-3 px-3">Montant</th>
+                  <th class="py-3 px-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="benefitTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ONGLET 4 : VÉHICULES ==================== -->
+      <section id="tab-vehicles" class="hidden">
+        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <h3 id="vehiclesTabTitle" class="text-base font-bold text-slate-900">🚘 Mes véhicules</h3>
+            <button id="vehiclesTabAddBtn" type="button" onclick="openVehicleModal()"
+              class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
+              + Ajouter un véhicule
+            </button>
+          </div>
+          <div id="vehiclesListGrid" class="grid grid-cols-1 gap-4"></div>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <!-- Modale Véhicule (Ajout / Édition avec Devise par voiture et toutes devises mondiales) -->
-  <div id="modal-vehicle" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 id="modal-vehicle-title" class="text-lg font-semibold text-white">Nouveau véhicule</h3>
-        <button data-close="modal-vehicle" class="text-slate-400 hover:text-white text-xl">&times;</button>
+  <!-- ==================== MODALE AJOUT/ÉDITION PLEIN ==================== -->
+  <div id="fuelModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="fuelModalTitle" class="text-lg font-bold text-slate-900">⛽ Ajouter un plein</h3>
+        <button type="button" onclick="closeModal('fuelModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
       </div>
-      <form id="form-vehicle" class="space-y-4">
-        <input type="hidden" id="vehicle-id" />
+      <form id="fuelForm" class="space-y-4">
+        <input type="hidden" id="fuelEditIndex" value="-1" />
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nom / Surnom</label>
-          <input id="vehicle-name" type="text" required placeholder="Ex. Auris Hybride" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          <label id="fEnergyGroupLabel" class="block text-xs font-semibold text-slate-600 mb-1.5">Type d'énergie</label>
+          <div class="flex items-center gap-5">
+            <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 cursor-pointer">
+              <input type="radio" name="fEnergyType" id="fEnergyEssence" value="Essence" checked onchange="updateFuelLiveCalc()" class="text-blue-600" />
+              <span id="fEnergyEssenceText">Essence</span>
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 cursor-pointer">
+              <input type="radio" name="fEnergyType" id="fEnergyElec" value="Électricité" onchange="updateFuelLiveCalc()" class="text-blue-600" />
+              <span id="fEnergyElecText">Électricité</span>
+            </label>
+          </div>
         </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Motorisation principale</label>
-            <select id="vehicle-energy" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
-              <option value="Essence">Essence</option>
-              <option value="Électrique">Électrique</option>
-              <option value="Hybride">Hybride</option>
-              <option value="Hybride rechargeable">Hybride rechargeable</option>
-              <option value="Diesel">Diesel</option>
-            </select>
+            <label id="fDateLabel" class="block text-xs font-semibold text-slate-600 mb-1">Date du plein</label>
+            <input type="date" id="fDate" required class="w-36 px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label id="fTimeLabel" class="block text-xs font-semibold text-slate-600 mt-2">Heure</label>
+            <input type="time" id="fTime" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
-
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Devise du véhicule (toutes devises)</label>
-            <select id="vehicle-currency" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"></select>
+            <label id="fOdoLabel" class="block text-xs font-semibold text-slate-600 mb-1">Compteur (km)</label>
+            <input type="number" id="fOdo" required min="0" step="1" class="w-32 px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
         </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Immatriculation</label>
-            <input id="vehicle-plate" type="text" placeholder="Ex. AA-123-BB" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <label id="fCostLabel" class="block text-xs font-semibold text-slate-600 mb-1">Coût total</label>
+            <input type="number" id="fCost" required min="0" step="0.01" placeholder="ex: 60.32" class="w-28 px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Kilométrage initial (km)</label>
-            <input id="vehicle-odometer" type="number" min="0" value="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <label id="fUnitPriceLabel" class="block text-xs font-semibold text-slate-600 mb-1">Prix au L</label>
+            <input type="number" id="fPricePerLiter" required min="0.001" step="0.001" placeholder="ex: 1.929" class="w-28 px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
         </div>
-
+        <div>
+          <label id="fQtyLabel" class="block text-xs font-semibold text-slate-600 mb-1">L calculés (automatique)</label>
+          <input type="text" id="fLitersPreview" readonly value="0,000 L" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-bold text-sm cursor-not-allowed" />
+        </div>
+        <div id="fLiveCalcBanner" class="p-3 rounded-xl bg-blue-50 text-blue-700 text-xs font-medium">
+          Saisissez le coût total et le prix unitaire : la quantité et la consommation s'affichent automatiquement.
+        </div>
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" data-close="modal-vehicle" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm">Annuler</button>
-          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white">Enregistrer</button>
+          <button id="fCancelBtn" type="button" onclick="closeModal('fuelModal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
+          <button id="fSaveBtn" type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modale Plein / Recharge -->
-  <div id="modal-refuel" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-white">Ajouter un plein / une recharge</h3>
-        <button data-close="modal-refuel" class="text-slate-400 hover:text-white text-xl">&times;</button>
+  <!-- ==================== MODALE AJOUT/ÉDITION DÉPENSE ==================== -->
+  <div id="expenseModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="expenseModalTitle" class="text-lg font-bold text-slate-900">🧾 Ajouter une dépense</h3>
+        <button type="button" onclick="closeModal('expenseModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
       </div>
-      <form id="form-refuel" class="space-y-4">
-        <div class="grid grid-cols-2 gap-3">
+      <form id="expenseForm" class="space-y-4">
+        <input type="hidden" id="expenseEditIndex" value="-1" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Date</label>
-            <input id="refuel-date" type="date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <label id="eDateLabel" class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
+            <input type="date" id="eDate" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+            <label id="eTimeLabel" class="block text-xs font-semibold text-slate-600 mt-2">Heure</label>
+            <input type="time" id="eTime" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Type d'énergie</label>
-            <select id="refuel-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
-              <option value="Essence">Essence</option>
-              <option value="Électrique">Électrique</option>
-              <option value="Diesel">Diesel</option>
+            <label id="eOdoLabel" class="block text-xs font-semibold text-slate-600 mb-1">Compteur (km)</label>
+            <input type="number" id="eOdo" required min="0" step="1" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label id="eCostLabel" class="block text-xs font-semibold text-slate-600 mb-1">Montant</label>
+          <input type="number" id="eCost" required min="0" step="0.01" placeholder="ex: 49.90" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="eCategoryLabel" class="block text-xs font-semibold text-slate-600 mb-1">Catégorie</label>
+            <select id="eCategory" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white">
+              <option value="Entretien">Entretien</option>
+              <option value="Assurance">Assurance</option>
+              <option value="Péage">Péage</option>
+              <option value="Parking">Parking</option>
+              <option value="Lavage">Lavage</option>
+              <option value="Pneus">Pneus</option>
+              <option value="Crédit">Crédit</option>
+              <option value="Divers">Divers</option>
+              <option value="Accessoires">Accessoires</option>
+              <option value="Abonnement">Abonnement</option>
             </select>
           </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Kilométrage (km)</label>
-            <input id="refuel-km" type="number" min="0" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
-          </div>
-          <div>
-            <label id="refuel-qty-label" class="block text-xs text-slate-400 mb-1">Quantité (L)</label>
-            <input id="refuel-qty" type="number" step="0.01" min="0.01" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <label id="eInfoLabel" class="block text-xs font-semibold text-slate-600 mb-1">Description / Libellé</label>
+            <input type="text" id="eInfo" required placeholder="ex: Entretien Toyota, Péage, Lavage..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
           </div>
         </div>
-
-        <div>
-          <label id="refuel-cost-label" class="block text-xs text-slate-400 mb-1">Montant total</label>
-          <input id="refuel-cost" type="number" step="0.01" min="0" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
-        </div>
-
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" data-close="modal-refuel" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm">Annuler</button>
-          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white">Valider</button>
+          <button id="eCancelBtn" type="button" onclick="closeModal('expenseModal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
+          <button id="eSaveBtn" type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modale Profil Utilisateur (Contient désormais le bouton Déconnexion) -->
-  <div id="modal-profile" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-5">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-semibold text-white">Profil utilisateur</h3>
-        <button data-close="modal-profile" class="text-slate-400 hover:text-white text-xl">&times;</button>
+  <!-- ==================== MODALE AJOUT/ÉDITION VÉHICULE ==================== -->
+  <div id="vehicleModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="vehicleModalTitle" class="text-lg font-bold text-slate-900">🚘 Ajouter / Modifier un véhicule</h3>
+        <button type="button" onclick="closeModal('vehicleModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
       </div>
-
-      <div class="space-y-3 text-sm">
-        <div>
-          <span class="text-slate-400 block text-xs">Nom affiché</span>
-          <span id="profile-name" class="text-white font-medium">—</span>
+      <form id="vehicleForm" class="space-y-3.5">
+        <input type="hidden" id="vEditId" value="" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="vNameLabel" class="block text-xs font-semibold text-slate-600 mb-1">Nom / Surnom du véhicule</label>
+            <input type="text" id="vName" required placeholder="ex: Kimberly" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label id="vCurrencyLabel" class="block text-xs font-semibold text-slate-600 mb-1">Devise du véhicule</label>
+            <select id="vCurrency" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white"></select>
+          </div>
         </div>
         <div>
-          <span class="text-slate-400 block text-xs">Adresse e-mail</span>
-          <span id="profile-email" class="text-white">—</span>
+          <label id="vRegLabel" class="block text-xs font-semibold text-slate-600 mb-1">N° d'immatriculation</label>
+          <input type="text" id="vRegistration" placeholder="ex : AB-123-CD" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm uppercase" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="vBrandLabel" class="block text-xs font-semibold text-slate-600 mb-1">Marque</label>
+            <input type="text" id="vBrand" required placeholder="ex: Toyota" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label id="vModelLabel" class="block text-xs font-semibold text-slate-600 mb-1">Modèle</label>
+            <input type="text" id="vModel" required placeholder="ex: Auris 2" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
         </div>
         <div>
-          <span class="text-slate-400 block text-xs">État de synchronisation</span>
-          <span class="text-emerald-400 text-xs font-medium">Données sauvegardées</span>
+          <label id="vVersionLabel" class="block text-xs font-semibold text-slate-600 mb-1">Version</label>
+          <input type="text" id="vVersion" required placeholder="ex: Technoline" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
         </div>
-      </div>
-
-      <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
-        <button type="button" data-close="modal-profile" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm">
-          Fermer
-        </button>
-        <button id="btn-logout" type="button" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-medium text-white">
-          Déconnexion
-        </button>
-      </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="vYearLabel" class="block text-xs font-semibold text-slate-600 mb-1">Année</label>
+            <input type="number" id="vYear" required min="1980" max="2035" placeholder="ex: 2018" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label id="vPowerLabel" class="block text-xs font-semibold text-slate-600 mb-1">Puissance</label>
+            <input type="text" id="vPower" required placeholder="ex: 5 CV" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label id="vFuelTypeLabel" class="block text-xs font-semibold text-slate-600 mb-1">Carburant / Énergie</label>
+          <input type="text" id="vFuelType" required placeholder="ex: Hybride Essence ou Électrique" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="vPurchasePriceLabel" class="block text-xs font-semibold text-slate-600 mb-1">Prix d'achat</label>
+            <input type="number" id="vPurchasePrice" required min="0" step="0.01" placeholder="ex: 18633" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label id="vPurchaseDateLabel" class="block text-xs font-semibold text-slate-600 mb-1">Date d'achat</label>
+            <input type="date" id="vPurchaseDate" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="vInitialOdoLabel" class="block text-xs font-semibold text-slate-600 mb-1">Kilométrage à l'achat (km)</label>
+            <input type="number" id="vInitialOdo" required min="0" step="1" placeholder="ex: 75845" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label id="vNextInspLabel" class="block text-xs font-semibold text-slate-600 mb-1">Prochain contrôle technique</label>
+            <input type="date" id="vNextInspectionDate" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button id="vCancelBtn" type="button" onclick="closeModal('vehicleModal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
+          <button id="vSaveBtn" type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <script>
-    // Liste complète des codes ISO 4217 courants + génération dynamique via Intl.DisplayNames
-    const CURRENCY_CODES = [
-      "EUR", "USD", "GBP", "MUR", "CHF", "CAD", "AUD", "JPY", "CNY", "INR",
-      "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AWG", "AZN", "BAM",
-      "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD",
-      "BTN", "BWP", "BYN", "BZD", "CDF", "CLP", "COP", "CRC", "CUP", "CVE",
-      "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "FJD", "FKP",
-      "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG",
-      "HUF", "IDR", "ILS", "IQD", "IRR", "ISK", "JMD", "JOD", "KES", "KGS",
-      "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR",
-      "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP",
-      "MRU", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK",
-      "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG",
-      "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK",
-      "SGD", "SHP", "SLE", "SLL", "SOS", "SRD", "SSP", "STN", "SVC", "SYP",
-      "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS",
-      "UAH", "UGX", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD",
-      "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"
-    ];
+  <!-- ==================== MODALE PROFIL UTILISATEUR ==================== -->
+  <div id="profileModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🪪</span>
+          <h3 id="profileModalTitle" class="text-lg font-bold text-slate-900">Mon Profil & Compte Google</h3>
+        </div>
+        <button type="button" onclick="closeModal('profileModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
+      </div>
 
-    const currencyDisplay = typeof Intl !== "undefined" && Intl.DisplayNames
-      ? new Intl.DisplayNames(["fr"], { type: "currency" })
-      : null;
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white mb-5 flex items-center gap-4 shadow-sm">
+        <div class="relative shrink-0">
+          <img id="modalProfileAvatar" src="" alt="Photo de profil Google" class="hidden w-16 h-16 rounded-full object-cover border-2 border-white/30 shadow" />
+          <div id="modalProfileInitials" class="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold border-2 border-white/30">👤</div>
+          <span title="Google" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-slate-900 flex items-center justify-center text-xs font-extrabold shadow">G</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div id="modalProfileFullName" class="text-base font-bold truncate">Utilisateur Google</div>
+          <div id="modalProfileEmail" class="text-xs text-slate-300 truncate mt-0.5">—</div>
+          <div id="modalProfileConnectedBadge" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-[11px] font-medium">
+            <span>✓</span> Connecté avec Google
+          </div>
+        </div>
+      </div>
 
-    function getCurrencyLabel(code) {
-      const name = currencyDisplay ? currencyDisplay.of(code) : null;
-      return name && name !== code ? `${code} — ${name}` : code;
+      <form id="profileForm" class="space-y-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="pFirstNameLabel" class="block text-xs font-semibold text-slate-600 mb-1">Prénom</label>
+            <input type="text" id="pFirstName" placeholder="Votre prénom" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+          <div>
+            <label id="pLastNameLabel" class="block text-xs font-semibold text-slate-600 mb-1">Nom</label>
+            <input type="text" id="pLastName" placeholder="Votre nom" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+        </div>
+
+        <div>
+          <label id="pDisplayNameLabel" class="block text-xs font-semibold text-slate-600 mb-1">Nom d'affichage (dans l'application)</label>
+          <input type="text" id="pDisplayName" placeholder="ex: Kris Yedlop" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div>
+          <label id="pEmailLabel" class="block text-xs font-semibold text-slate-600 mb-1">Adresse e-mail Google</label>
+          <input type="email" id="pEmail" readonly class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-sm cursor-not-allowed" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label id="pPhoneLabel" class="block text-xs font-semibold text-slate-600 mb-1">Téléphone</label>
+            <input type="tel" id="pPhone" placeholder="ex: +33 6 12 34 56 78" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+          <div>
+            <label id="pBirthDateLabel" class="block text-xs font-semibold text-slate-600 mb-1">Date de naissance</label>
+            <input type="date" id="pBirthDate" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+        </div>
+
+        <div>
+          <label id="pAddressLabel" class="block text-xs font-semibold text-slate-600 mb-1">Adresse postale / Ville</label>
+          <input type="text" id="pAddress" placeholder="ex: Reims, France" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div>
+          <label id="pLicenseLabel" class="block text-xs font-semibold text-slate-600 mb-1">N° de permis de conduire</label>
+          <input type="text" id="pLicenseNumber" placeholder="ex: 12AB34567" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm uppercase focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div>
+          <label id="pLangLabel" class="block text-xs font-semibold text-slate-600 mb-1">Langue de l'application</label>
+          <select id="pLanguage" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:border-blue-600"></select>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+          <div class="flex items-center gap-2">
+            <button id="pResetGoogleBtn" type="button" onclick="resetProfileFromGoogle()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold cursor-pointer">
+              ↻ Réinitialiser Google
+            </button>
+            <button id="profileLogoutBtn" type="button" onclick="autoTrackLogout()" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold cursor-pointer">
+              Déconnexion
+            </button>
+          </div>
+          <div class="flex gap-2">
+            <button id="pCancelBtn" type="button" onclick="closeModal('profileModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
+            <button id="pSaveBtn" type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal bénéfice -->
+  <div id="benefitModal" class="hidden fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[150]">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="benefitModalTitle" class="text-lg font-bold mb-4">Ajouter une rentrée d'argent</h3>
+      <form id="benefitForm" class="space-y-4">
+        <div>
+          <label id="bDateLabel" class="block text-xs font-semibold mb-1">Date</label>
+          <input id="bDate" type="date" required class="w-full px-3 py-2 rounded-xl border border-slate-300">
+        </div>
+        <div>
+          <label id="bAmountLabel" class="block text-xs font-semibold mb-1">Montant</label>
+          <input id="bAmount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 rounded-xl border border-slate-300">
+        </div>
+        <div class="flex justify-end gap-2">
+          <button id="bCancelBtn" type="button" onclick="closeModal('benefitModal')" class="px-4 py-2 rounded-xl bg-slate-100 cursor-pointer">Annuler</button>
+          <button id="bSaveBtn" type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold cursor-pointer">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ==================== LANGUES & TRADUCTIONS ====================
+const SUPPORTED_LANGUAGES = [
+  { code: "FR", htmlLang: "fr", locale: "fr-FR", label: "Français (FR)" },
+  { code: "EN", htmlLang: "en", locale: "en-GB", label: "English (EN)" },
+  { code: "DE", htmlLang: "de", locale: "de-DE", label: "Deutsch (DE)" },
+  { code: "NL", htmlLang: "nl", locale: "nl-NL", label: "Nederlands (NL)" },
+  { code: "HI", htmlLang: "hi", locale: "hi-IN", label: "हिन्दी (Hindi)" },
+  { code: "AR", htmlLang: "ar", locale: "ar-SA", label: "العربية (Arab)" },
+  { code: "ES", htmlLang: "es", locale: "es-ES", label: "Español (Spanish)" },
+  { code: "ZH", htmlLang: "zh-CN", locale: "zh-CN", label: "中文 (Chinese)" },
+  { code: "IT", htmlLang: "it", locale: "it-IT", label: "Italiano (Italian)" }
+];
+
+const I18N = {
+  FR: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Connectez-vous pour retrouver et synchroniser vos données automobiles.",
+    langLabel: "Langue",
+    googleLogin: "Continuer avec Google",
+    loginRedirect: "Redirection vers Google…",
+    loginOpening: "Ouverture de la connexion Google…",
+    loginStatus: "Connexion sécurisée — données privées",
+    loginInit: "Initialisation en cours. Réessayez dans quelques secondes.",
+    exportLocal: "Exporter les données locales (si disponibles)",
+    savedOk: "☁️ Données sauvegardées",
+    saving: "☁️ Sauvegarde…",
+    saveErr: "⚠️ Sauvegarde indisponible",
+    saveErrToast: "Erreur lors de la sauvegarde des données.",
+    unsavedBanner: "⚠️ Données modifiées localement. Exportez <strong>autotrack_data.json</strong> pour garder une sauvegarde locale.",
+    downloadJson: "Télécharger le JSON",
+    noVehicle: "Aucun véhicule",
+    addVehicle: "+ Véhicule",
+    emptyTitle: "Aucun véhicule sélectionné",
+    emptyDesc: "Ajoutez votre véhicule (marque, modèle, année, puissance, carburant, devise) pour commencer le suivi.",
+    emptyAdd: "+ Ajouter mon véhicule",
+    tabQuick: "⚡ Accès Rapide",
+    tabDashboard: "📊 Tableau de bord",
+    tabFuel: "📈 Pleins & Conso",
+    tabExpenses: "📉 Dépenses",
+    tabBenefits: "💶 Bénéfices",
+    tabVehicles: "🚘 Véhicules",
+    quickFuel: "⛽ + Plein",
+    quickExpense: "🧾 + Dépense",
+    quickBenefit: "💶 + Bénéfice",
+    logout: "Déconnexion",
+    loggingOut: "Déconnexion…",
+    logoutErr: "Impossible de terminer la déconnexion : ",
+    confirmTitle: "Confirmation",
+    cancel: "Annuler",
+    deleteBtn: "Supprimer",
+    saveBtn: "Enregistrer",
+    profileTitle: "Mon Profil & Compte Google",
+    connectedGoogle: "Connecté avec Google",
+    resetGoogle: "↻ Réinitialiser Google",
+    profileSaved: "Profil et langue enregistrés.",
+    vehicleSaved: "Véhicule enregistré avec succès.",
+    vehicleDeleted: "Véhicule supprimé.",
+    fuelSaved: "Plein enregistré.",
+    fuelDeleted: "Plein supprimé.",
+    expenseSaved: "Dépense enregistrée.",
+    expenseDeleted: "Dépense supprimée.",
+    benefitSaved: "Bénéfice enregistré.",
+    benefitDeleted: "Bénéfice supprimé.",
+    confirmDelFuel: "Supprimer ce plein ?",
+    confirmDelExpense: "Supprimer cette dépense ?",
+    confirmDelVehicle: "Voulez-vous vraiment supprimer ce véhicule et tout son historique ?",
+    confirmDelBenefit: "Supprimer ce bénéfice ?"
+  },
+  EN: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Sign in to access and sync your vehicle tracking data.",
+    langLabel: "Language",
+    googleLogin: "Continue with Google",
+    loginRedirect: "Redirecting to Google…",
+    loginOpening: "Opening Google sign-in…",
+    loginStatus: "Secure sign-in — private data",
+    loginInit: "Initializing. Please try again in a few seconds.",
+    exportLocal: "Export local data (if available)",
+    savedOk: "☁️ Data saved",
+    saving: "☁️ Saving…",
+    saveErr: "⚠️ Save issue",
+    saveErrToast: "Error saving data.",
+    unsavedBanner: "⚠️ Local changes pending. Export <strong>autotrack_data.json</strong> to keep a local backup.",
+    downloadJson: "Download JSON",
+    noVehicle: "No vehicle",
+    addVehicle: "+ Vehicle",
+    emptyTitle: "No vehicle selected",
+    emptyDesc: "Add your vehicle (make, model, year, power, fuel/energy, currency) to start tracking.",
+    emptyAdd: "+ Add my vehicle",
+    tabQuick: "⚡ Quick Access",
+    tabDashboard: "📊 Dashboard",
+    tabFuel: "📈 Refuels & Usage",
+    tabExpenses: "📉 Expenses",
+    tabBenefits: "💶 Benefits",
+    tabVehicles: "🚘 Vehicles",
+    quickFuel: "⛽ + Refuel",
+    quickExpense: "🧾 + Expense",
+    quickBenefit: "💶 + Benefit",
+    logout: "Log out",
+    loggingOut: "Logging out…",
+    logoutErr: "Could not complete sign out: ",
+    confirmTitle: "Confirmation",
+    cancel: "Cancel",
+    deleteBtn: "Delete",
+    saveBtn: "Save",
+    profileTitle: "My Profile & Google Account",
+    connectedGoogle: "Signed in with Google",
+    resetGoogle: "↻ Reset from Google",
+    profileSaved: "Profile and language saved.",
+    vehicleSaved: "Vehicle saved successfully.",
+    vehicleDeleted: "Vehicle deleted.",
+    fuelSaved: "Refuel saved.",
+    fuelDeleted: "Refuel deleted.",
+    expenseSaved: "Expense saved.",
+    expenseDeleted: "Expense deleted.",
+    benefitSaved: "Benefit saved.",
+    benefitDeleted: "Benefit deleted.",
+    confirmDelFuel: "Delete this refuel entry?",
+    confirmDelExpense: "Delete this expense?",
+    confirmDelVehicle: "Are you sure you want to delete this vehicle and all its history?",
+    confirmDelBenefit: "Delete this benefit entry?"
+  },
+  DE: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Melden Sie sich an, um Ihre Fahrzeugdaten abzurufen und zu synchronisieren.",
+    langLabel: "Sprache",
+    googleLogin: "Mit Google fortfahren",
+    loginRedirect: "Weiterleitung zu Google…",
+    loginOpening: "Google-Anmeldung wird geöffnet…",
+    loginStatus: "Sichere Anmeldung — private Daten",
+    loginInit: "Wird initialisiert. Bitte in wenigen Sekunden erneut versuchen.",
+    exportLocal: "Lokale Daten exportieren (falls vorhanden)",
+    savedOk: "☁️ Daten gespeichert",
+    saving: "☁️ Speichern…",
+    saveErr: "⚠️ Speicherfehler",
+    saveErrToast: "Fehler beim Speichern der Daten.",
+    unsavedBanner: "⚠️ Lokale Änderungen vorhanden. Exportieren Sie <strong>autotrack_data.json</strong> für eine Sicherung.",
+    downloadJson: "JSON herunterladen",
+    noVehicle: "Kein Fahrzeug",
+    addVehicle: "+ Fahrzeug",
+    emptyTitle: "Kein Fahrzeug ausgewählt",
+    emptyDesc: "Fügen Sie Ihr Fahrzeug (Marke, Modell, Jahr, Leistung, Energie, Währung) hinzu.",
+    emptyAdd: "+ Fahrzeug hinzufügen",
+    tabQuick: "⚡ Schnellzugriff",
+    tabDashboard: "📊 Dashboard",
+    tabFuel: "📈 Tanken & Verbrauch",
+    tabExpenses: "📉 Ausgaben",
+    tabBenefits: "💶 Einnahmen",
+    tabVehicles: "🚘 Fahrzeuge",
+    quickFuel: "⛽ + Laden/Tanken",
+    quickExpense: "🧾 + Ausgabe",
+    quickBenefit: "💶 + Einnahme",
+    logout: "Abmelden",
+    loggingOut: "Abmelden…",
+    logoutErr: "Abmeldung fehlgeschlagen: ",
+    confirmTitle: "Bestätigung",
+    cancel: "Abbrechen",
+    deleteBtn: "Löschen",
+    saveBtn: "Speichern",
+    profileTitle: "Mein Profil & Google-Konto",
+    connectedGoogle: "Mit Google verbunden",
+    resetGoogle: "↻ Von Google zurücksetzen",
+    profileSaved: "Profil und Sprache gespeichert.",
+    vehicleSaved: "Fahrzeug gespeichert.",
+    vehicleDeleted: "Fahrzeug gelöscht.",
+    fuelSaved: "Eintrag gespeichert.",
+    fuelDeleted: "Eintrag gelöscht.",
+    expenseSaved: "Ausgabe gespeichert.",
+    expenseDeleted: "Ausgabe gelöscht.",
+    benefitSaved: "Einnahme gespeichert.",
+    benefitDeleted: "Einnahme gelöscht.",
+    confirmDelFuel: "Diesen Eintrag löschen?",
+    confirmDelExpense: "Diese Ausgabe löschen?",
+    confirmDelVehicle: "Möchten Sie dieses Fahrzeug und den gesamten Verlauf wirklich löschen?",
+    confirmDelBenefit: "Diese Einnahme löschen?"
+  },
+  NL: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Log in om uw voertuiggegevens te openen en te synchroniseren.",
+    langLabel: "Taal",
+    googleLogin: "Doorgaan met Google",
+    loginRedirect: "Omleiden naar Google…",
+    loginOpening: "Google-aanmelding openen…",
+    loginStatus: "Veilig inloggen — privégegevens",
+    loginInit: "Bezig met initialiseren. Probeer het over enkele seconden opnieuw.",
+    exportLocal: "Lokale gegevens exporteren (indien beschikbaar)",
+    savedOk: "☁️ Gegevens opgeslagen",
+    saving: "☁️ Opslaan…",
+    saveErr: "⚠️ Opslaan mislukt",
+    saveErrToast: "Fout bij het opslaan van gegevens.",
+    unsavedBanner: "⚠️ Lokale wijzigingen. Exporteer <strong>autotrack_data.json</strong> voor een lokale back-up.",
+    downloadJson: "JSON downloaden",
+    noVehicle: "Geen voertuig",
+    addVehicle: "+ Voertuig",
+    emptyTitle: "Geen voertuig geselecteerd",
+    emptyDesc: "Voeg uw voertuig toe (merk, model, jaar, vermogen, energie, valuta) om te beginnen.",
+    emptyAdd: "+ Voertuig toevoegen",
+    tabQuick: "⚡ Snelmenu",
+    tabDashboard: "📊 Dashboard",
+    tabFuel: "📈 Tanken & Verbruik",
+    tabExpenses: "📉 Uitgaven",
+    tabBenefits: "💶 Opbrengsten",
+    tabVehicles: "🚘 Voertuigen",
+    quickFuel: "⛽ + Laden/Tanken",
+    quickExpense: "🧾 + Uitgave",
+    quickBenefit: "💶 + Opbrengst",
+    logout: "Uitloggen",
+    loggingOut: "Uitloggen…",
+    logoutErr: "Uitloggen mislukt: ",
+    confirmTitle: "Bevestiging",
+    cancel: "Annuleren",
+    deleteBtn: "Verwijderen",
+    saveBtn: "Opslaan",
+    profileTitle: "Mijn Profiel & Google-account",
+    connectedGoogle: "Verbonden met Google",
+    resetGoogle: "↻ Herstellen via Google",
+    profileSaved: "Profiel en taal opgeslagen.",
+    vehicleSaved: "Voertuig opgeslagen.",
+    vehicleDeleted: "Voertuig verwijderd.",
+    fuelSaved: "Invoer opgeslagen.",
+    fuelDeleted: "Invoer verwijderd.",
+    expenseSaved: "Uitgave opgeslagen.",
+    expenseDeleted: "Uitgave verwijderd.",
+    benefitSaved: "Opbrengst opgeslagen.",
+    benefitDeleted: "Opbrengst verwijderd.",
+    confirmDelFuel: "Deze invoer verwijderen?",
+    confirmDelExpense: "Deze uitgave verwijderen?",
+    confirmDelVehicle: "Weet u zeker dat u dit voertuig en de geschiedenis wilt verwijderen?",
+    confirmDelBenefit: "Deze opbrengst verwijderen?"
+  },
+  HI: {
+    authTitle: "AutoTrack",
+    authSubtitle: "अपने वाहन का डेटा देखने और सिंक करने के लिए साइन इन करें।",
+    langLabel: "भाषा",
+    googleLogin: "Google से जारी रखें",
+    loginRedirect: "Google पर रीडायरेक्ट किया जा रहा है…",
+    loginOpening: "Google साइन-इन खोला जा रहा है…",
+    loginStatus: "सुरक्षित साइन-इन — निजी डेटा",
+    loginInit: "प्रारंभ हो रहा है। कृपया कुछ सेकंड बाद पुनः प्रयास करें।",
+    exportLocal: "स्थानीय डेटा निर्यात करें (यदि उपलब्ध हो)",
+    savedOk: "☁️ डेटा सहेजा गया",
+    saving: "☁️ सहेजा जा रहा है…",
+    saveErr: "⚠️ सहेजने में त्रुटि",
+    saveErrToast: "डेटा सहेजने में त्रुटि हुई।",
+    unsavedBanner: "⚠️ स्थानीय बदलाव मौजूद हैं। बैकअप के लिए <strong>autotrack_data.json</strong> निर्यात करें।",
+    downloadJson: "JSON डाउनलोड करें",
+    noVehicle: "कोई वाहन नहीं",
+    addVehicle: "+ वाहन",
+    emptyTitle: "कोई वाहन चयनित नहीं है",
+    emptyDesc: "ट्रैकिंग शुरू करने के लिए अपना वाहन जोड़ें।",
+    emptyAdd: "+ वाहन जोड़ें",
+    tabQuick: "⚡ त्वरित पहुंच",
+    tabDashboard: "📊 डैशबोर्ड",
+    tabFuel: "📈 ईंधन और खपत",
+    tabExpenses: "📉 खर्च",
+    tabBenefits: "💶 लाभ",
+    tabVehicles: "🚘 वाहन",
+    quickFuel: "⛽ + भरें/चार्ज",
+    quickExpense: "🧾 + खर्च",
+    quickBenefit: "💶 + लाभ",
+    logout: "लॉग आउट",
+    loggingOut: "लॉग आउट हो रहा है…",
+    logoutErr: "लॉग आउट पूरा नहीं हो सका: ",
+    confirmTitle: "पुष्टि करें",
+    cancel: "रद्द करें",
+    deleteBtn: "हटाएं",
+    saveBtn: "सहेजें",
+    profileTitle: "मेरी प्रोफ़ाइल और Google खाता",
+    connectedGoogle: "Google से जुड़ा हुआ",
+    resetGoogle: "↻ Google से रीसेट करें",
+    profileSaved: "प्रोफ़ाइल और भाषा सहेजी गई।",
+    vehicleSaved: "वाहन सहेजा गया।",
+    vehicleDeleted: "वाहन हटाया गया।",
+    fuelSaved: "एंट्री सहेजी गई।",
+    fuelDeleted: "एंट्री हटाई गई।",
+    expenseSaved: "खर्च सहेजा गया।",
+    expenseDeleted: "खर्च हटाया गया।",
+    benefitSaved: "लाभ सहेजा गया।",
+    benefitDeleted: "लाभ हटाया गया।",
+    confirmDelFuel: "क्या आप इस एंट्री को हटाना चाहते हैं?",
+    confirmDelExpense: "क्या आप इस खर्च को हटाना चाहते हैं?",
+    confirmDelVehicle: "क्या आप इस वाहन और इसका सारा इतिहास हटाना चाहते हैं?",
+    confirmDelBenefit: "क्या आप इस लाभ एंट्री को हटाना चाहते हैं?"
+  },
+  AR: {
+    authTitle: "AutoTrack",
+    authSubtitle: "سجّل الدخول للوصول إلى بيانات مركبتك ومزامنتها.",
+    langLabel: "اللغة",
+    googleLogin: "المتابعة باستخدام Google",
+    loginRedirect: "جارٍ التحويل إلى Google…",
+    loginOpening: "جارٍ فتح تسجيل الدخول عبر Google…",
+    loginStatus: "تسجيل دخول آمن — بيانات خاصة",
+    loginInit: "جارٍ التهيئة. يُرجى المحاولة بعد ثوانٍ.",
+    exportLocal: "تصدير البيانات المحلية (إن وجدت)",
+    savedOk: "☁️ تم حفظ البيانات",
+    saving: "☁️ جارٍ الحفظ…",
+    saveErr: "⚠️ تعذّر الحفظ",
+    saveErrToast: "حدث خطأ أثناء حفظ البيانات.",
+    unsavedBanner: "⚠️ توجد تغييرات محلية. صدّر <strong>autotrack_data.json</strong> للاحتفاظ بنسخة محلية.",
+    downloadJson: "تنزيل JSON",
+    noVehicle: "لا توجد مركبة",
+    addVehicle: "+ مركبة",
+    emptyTitle: "لم يتم اختيار مركبة",
+    emptyDesc: "أضف مركبتك (النوع، الطراز، السنة، القدرة، الطاقة، العملة) للبدء.",
+    emptyAdd: "+ إضافة مركبة",
+    tabQuick: "⚡ وصول سريع",
+    tabDashboard: "📊 لوحة المعلومات",
+    tabFuel: "📈 الوقود والاستهلاك",
+    tabExpenses: "📉 المصروفات",
+    tabBenefits: "💶 الإيرادات",
+    tabVehicles: "🚘 المركبات",
+    quickFuel: "⛽ + تعبئة/شحن",
+    quickExpense: "🧾 + مصروف",
+    quickBenefit: "💶 + إيراد",
+    logout: "تسجيل الخروج",
+    loggingOut: "جارٍ تسجيل الخروج…",
+    logoutErr: "تعذّر إتمام تسجيل الخروج: ",
+    confirmTitle: "تأكيد",
+    cancel: "إلغاء",
+    deleteBtn: "حذف",
+    saveBtn: "حفظ",
+    profileTitle: "ملفي الشخصي وحساب Google",
+    connectedGoogle: "متصل بحساب Google",
+    resetGoogle: "↻ استعادة من Google",
+    profileSaved: "تم حفظ الملف الشخصي واللغة.",
+    vehicleSaved: "تم حفظ المركبة بنجاح.",
+    vehicleDeleted: "تم حذف المركبة.",
+    fuelSaved: "تم حفظ الإدخال.",
+    fuelDeleted: "تم حذف الإدخال.",
+    expenseSaved: "تم حفظ المصروف.",
+    expenseDeleted: "تم حذف المصروف.",
+    benefitSaved: "تم حفظ الإيراد.",
+    benefitDeleted: "تم حذف الإيراد.",
+    confirmDelFuel: "هل تريد حذف هذا السجل؟",
+    confirmDelExpense: "هل تريد حذف هذا المصروف؟",
+    confirmDelVehicle: "هل تريد بالتأكيد حذف هذه المركبة وجميع سجلاتها؟",
+    confirmDelBenefit: "هل تريد حذف هذا الإيراد؟"
+  },
+  ES: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Inicia sesión para consultar y sincronizar los datos de tu vehículo.",
+    langLabel: "Idioma",
+    googleLogin: "Continuar con Google",
+    loginRedirect: "Redirigiendo a Google…",
+    loginOpening: "Abriendo inicio de sesión de Google…",
+    loginStatus: "Inicio de sesión seguro — datos privados",
+    loginInit: "Inicializando. Inténtalo de nuevo en unos segundos.",
+    exportLocal: "Exportar datos locales (si están disponibles)",
+    savedOk: "☁️ Datos guardados",
+    saving: "☁️ Guardando…",
+    saveErr: "⚠️ Error al guardar",
+    saveErrToast: "Error al guardar los datos.",
+    unsavedBanner: "⚠️ Cambios locales pendientes. Exporta <strong>autotrack_data.json</strong> para conservar una copia.",
+    downloadJson: "Descargar JSON",
+    noVehicle: "Sin vehículo",
+    addVehicle: "+ Vehículo",
+    emptyTitle: "Ningún vehículo seleccionado",
+    emptyDesc: "Añade tu vehículo (marca, modelo, año, potencia, energía, divisa) para empezar.",
+    emptyAdd: "+ Añadir vehículo",
+    tabQuick: "⚡ Acceso rápido",
+    tabDashboard: "📊 Panel",
+    tabFuel: "📈 Combustible y consumo",
+    tabExpenses: "📉 Gastos",
+    tabBenefits: "💶 Beneficios",
+    tabVehicles: "🚘 Vehículos",
+    quickFuel: "⛽ + Repostar/Carga",
+    quickExpense: "🧾 + Gasto",
+    quickBenefit: "💶 + Beneficio",
+    logout: "Cerrar sesión",
+    loggingOut: "Cerrando sesión…",
+    logoutErr: "No se pudo cerrar la sesión: ",
+    confirmTitle: "Confirmación",
+    cancel: "Cancelar",
+    deleteBtn: "Eliminar",
+    saveBtn: "Guardar",
+    profileTitle: "Mi Perfil y Cuenta de Google",
+    connectedGoogle: "Conectado con Google",
+    resetGoogle: "↻ Restablecer desde Google",
+    profileSaved: "Perfil e idioma guardados.",
+    vehicleSaved: "Vehículo guardado correctamente.",
+    vehicleDeleted: "Vehículo eliminado.",
+    fuelSaved: "Registro guardado.",
+    fuelDeleted: "Registro eliminado.",
+    expenseSaved: "Gasto guardado.",
+    expenseDeleted: "Gasto eliminado.",
+    benefitSaved: "Beneficio guardado.",
+    benefitDeleted: "Beneficio eliminado.",
+    confirmDelFuel: "¿Eliminar este registro?",
+    confirmDelExpense: "¿Eliminar este gasto?",
+    confirmDelVehicle: "¿Seguro que deseas eliminar este vehículo y todo su historial?",
+    confirmDelBenefit: "¿Eliminar este beneficio?"
+  },
+  ZH: {
+    authTitle: "AutoTrack",
+    authSubtitle: "登录以查看和同步您的车辆跟踪数据。",
+    langLabel: "语言",
+    googleLogin: "使用 Google 继续",
+    loginRedirect: "正在跳转到 Google…",
+    loginOpening: "正在打开 Google 登录…",
+    loginStatus: "安全登录 — 私人数据",
+    loginInit: "正在初始化，请稍后再试。",
+    exportLocal: "导出本地数据（如有）",
+    savedOk: "☁️ 数据已保存",
+    saving: "☁️ 正在保存…",
+    saveErr: "⚠️ 保存失败",
+    saveErrToast: "保存数据时出错。",
+    unsavedBanner: "⚠️ 存在本地更改。请导出 <strong>autotrack_data.json</strong> 备份。",
+    downloadJson: "下载 JSON",
+    noVehicle: "无车辆",
+    addVehicle: "+ 车辆",
+    emptyTitle: "未选择车辆",
+    emptyDesc: "请添加车辆（品牌、型号、年份、功率、能源、货币）以开始记录。",
+    emptyAdd: "+ 添加车辆",
+    tabQuick: "⚡ 快捷访问",
+    tabDashboard: "📊 仪表盘",
+    tabFuel: "📈 能源与能耗",
+    tabExpenses: "📉 支出",
+    tabBenefits: "💶 收益",
+    tabVehicles: "🚘 车辆",
+    quickFuel: "⛽ + 加油/充电",
+    quickExpense: "🧾 + 支出",
+    quickBenefit: "💶 + 收益",
+    logout: "退出登录",
+    loggingOut: "正在退出…",
+    logoutErr: "无法完成退出登录：",
+    confirmTitle: "确认",
+    cancel: "取消",
+    deleteBtn: "删除",
+    saveBtn: "保存",
+    profileTitle: "我的个人资料与 Google 账号",
+    connectedGoogle: "已连接 Google",
+    resetGoogle: "↻ 从 Google 恢复",
+    profileSaved: "个人资料和语言已保存。",
+    vehicleSaved: "车辆已保存。",
+    vehicleDeleted: "车辆已删除。",
+    fuelSaved: "记录已保存。",
+    fuelDeleted: "记录已删除。",
+    expenseSaved: "支出已保存。",
+    expenseDeleted: "支出已删除。",
+    benefitSaved: "收益已保存。",
+    benefitDeleted: "收益已删除。",
+    confirmDelFuel: "确定删除此记录？",
+    confirmDelExpense: "确定删除此支出？",
+    confirmDelVehicle: "确定要删除此车辆及全部历史记录吗？",
+    confirmDelBenefit: "确定删除此收益记录？"
+  },
+  IT: {
+    authTitle: "AutoTrack",
+    authSubtitle: "Accedi per ritrovare e sincronizzare i dati del tuo veicolo.",
+    langLabel: "Lingua",
+    googleLogin: "Continua con Google",
+    loginRedirect: "Reindirizzamento a Google…",
+    loginOpening: "Apertura accesso Google…",
+    loginStatus: "Accesso sicuro — dati privati",
+    loginInit: "Inizializzazione in corso. Riprova tra qualche secondo.",
+    exportLocal: "Esporta dati locali (se disponibili)",
+    savedOk: "☁️ Dati salvati",
+    saving: "☁️ Salvataggio…",
+    saveErr: "⚠️ Errore salvataggio",
+    saveErrToast: "Errore durante il salvataggio dei dati.",
+    unsavedBanner: "⚠️ Modifiche locali non esportate. Esporta <strong>autotrack_data.json</strong> per un backup locale.",
+    downloadJson: "Scarica JSON",
+    noVehicle: "Nessun veicolo",
+    addVehicle: "+ Veicolo",
+    emptyTitle: "Nessun veicolo selezionato",
+    emptyDesc: "Aggiungi il tuo veicolo (marca, modello, anno, potenza, energia, valuta) per iniziare.",
+    emptyAdd: "+ Aggiungi veicolo",
+    tabQuick: "⚡ Accesso Rapido",
+    tabDashboard: "📊 Dashboard",
+    tabFuel: "📈 Rifornimenti & Consumi",
+    tabExpenses: "📉 Spese",
+    tabBenefits: "💶 Entrate",
+    tabVehicles: "🚘 Veicoli",
+    quickFuel: "⛽ + Rifornimento",
+    quickExpense: "🧾 + Spesa",
+    quickBenefit: "💶 + Entrata",
+    logout: "Disconnetti",
+    loggingOut: "Disconnessione…",
+    logoutErr: "Impossibile completare la disconnessione: ",
+    confirmTitle: "Conferma",
+    cancel: "Annulla",
+    deleteBtn: "Elimina",
+    saveBtn: "Salva",
+    profileTitle: "Il Mio Profilo & Account Google",
+    connectedGoogle: "Connesso con Google",
+    resetGoogle: "↻ Ripristina da Google",
+    profileSaved: "Profilo e lingua salvati.",
+    vehicleSaved: "Veicolo salvato.",
+    vehicleDeleted: "Veicolo eliminato.",
+    fuelSaved: "Registrazione salvata.",
+    fuelDeleted: "Registrazione eliminata.",
+    expenseSaved: "Spesa salvata.",
+    expenseDeleted: "Spesa eliminata.",
+    benefitSaved: "Entrata salvata.",
+    benefitDeleted: "Entrata eliminata.",
+    confirmDelFuel: "Eliminare questa registrazione?",
+    confirmDelExpense: "Eliminare questa spesa?",
+    confirmDelVehicle: "Vuoi davvero eliminare questo veicolo e tutta la sua cronologia?",
+    confirmDelBenefit: "Eliminare questa entrata?"
+  }
+};
+
+function normalizeLangCode(code) {
+  const upper = String(code || "FR").toUpperCase();
+  if (upper === "HINDI") return "HI";
+  if (upper === "ARAB" || upper === "ARABIC") return "AR";
+  if (upper === "SPANISH") return "ES";
+  if (upper === "CHINESE") return "ZH";
+  if (upper === "ITALIAN" || upper === "ITALIEN") return "IT";
+  return I18N[upper] ? upper : "FR";
+}
+
+function getLangMeta(code) {
+  const norm = normalizeLangCode(code);
+  return SUPPORTED_LANGUAGES.find(l => l.code === norm) || SUPPORTED_LANGUAGES[0];
+}
+
+function getActiveLanguage() {
+  if (currentUser?.language) return normalizeLangCode(currentUser.language);
+  if (db?.defaultLanguage) return normalizeLangCode(db.defaultLanguage);
+  try {
+    const saved = localStorage.getItem("autotrack_lang");
+    if (saved) return normalizeLangCode(saved);
+  } catch {}
+  return "FR";
+}
+
+function t(key) {
+  const lang = getActiveLanguage();
+  return (I18N[lang] && I18N[lang][key]) || I18N.FR[key] || key;
+}
+
+function populateLanguageSelects() {
+  const active = getActiveLanguage();
+  ["loginLanguageSelect", "pLanguage"].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = SUPPORTED_LANGUAGES.map(l =>
+      `<option value="${l.code}" ${l.code === active ? "selected" : ""}>${l.label}</option>`
+    ).join("");
+  });
+}
+
+function applyLanguageToDOM() {
+  const lang = getActiveLanguage();
+  const meta = getLangMeta(lang);
+  document.documentElement.lang = meta.htmlLang;
+  document.documentElement.dir = lang === "AR" ? "rtl" : "ltr";
+
+  populateLanguageSelects();
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const setHtml = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+
+  setText("authTitle", t("authTitle"));
+  setText("authSubtitle", t("authSubtitle"));
+  setText("authLangLabel", t("langLabel"));
+  const loginBtn = document.getElementById("supabaseGoogleLogin");
+  if (loginBtn && !loginBtn.disabled) loginBtn.textContent = t("googleLogin");
+  setText("supabaseLoginStatus", t("loginStatus"));
+  setText("authExportBtn", t("exportLocal"));
+
+  setText("headerAddVehicleBtn", t("addVehicle"));
+  const statusEl = document.getElementById("oneDriveHeaderStatus");
+  if (statusEl) {
+    if (statusEl.dataset.state === "saving") statusEl.textContent = t("saving");
+    else if (statusEl.dataset.state === "error") statusEl.textContent = t("saveErr");
+    else statusEl.textContent = t("savedOk");
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const map = {
+      quick: "tabQuick",
+      dashboard: "tabDashboard",
+      "fuel-details": "tabFuel",
+      "expenses-details": "tabExpenses",
+      benefits: "tabBenefits",
+      vehicles: "tabVehicles"
+    };
+    if (map[btn.dataset.tab]) btn.textContent = t(map[btn.dataset.tab]);
+  });
+
+  setHtml("unsavedBannerText", t("unsavedBanner"));
+  setText("unsavedDownloadBtn", t("downloadJson"));
+  setText("emptyTitle", t("emptyTitle"));
+  setText("emptyDesc", t("emptyDesc"));
+  setText("emptyAddBtn", t("emptyAdd"));
+
+  setText("quickBtnFuel", t("quickFuel"));
+  setText("quickBtnExpense", t("quickExpense"));
+  setText("quickBtnBenefit", t("quickBenefit"));
+
+  setText("confirmTitle", t("confirmTitle"));
+  setText("confirmCancelBtn", t("cancel"));
+  setText("confirmOkBtn", t("deleteBtn"));
+
+  setText("profileModalTitle", t("profileTitle"));
+  setHtml("modalProfileConnectedBadge", `<span>✓</span> ${t("connectedGoogle")}`);
+  setText("pLangLabel", t("langLabel"));
+  setText("pResetGoogleBtn", t("resetGoogle"));
+  const logoutBtn = document.getElementById("profileLogoutBtn");
+  if (logoutBtn && !logoutBtn.disabled) logoutBtn.textContent = t("logout");
+  setText("pCancelBtn", t("cancel"));
+  setText("pSaveBtn", t("saveBtn"));
+
+  ["fCancelBtn", "eCancelBtn", "vCancelBtn", "bCancelBtn"].forEach(id => setText(id, t("cancel")));
+  ["fSaveBtn", "eSaveBtn", "vSaveBtn", "bSaveBtn"].forEach(id => setText(id, t("saveBtn")));
+  setText("vehiclesTabTitle", t("tabVehicles"));
+  setText("vehiclesTabAddBtn", t("addVehicle"));
+}
+
+function onLanguageChange(newLang) {
+  const norm = normalizeLangCode(newLang);
+  try { localStorage.setItem("autotrack_lang", norm); } catch {}
+  if (currentUser) {
+    currentUser.language = norm;
+    db.defaultLanguage = norm;
+    db.users = [currentUser];
+    saveDB(true);
+  } else {
+    db.defaultLanguage = norm;
+  }
+  applyLanguageToDOM();
+  if (!document.getElementById("appView")?.classList.contains("hidden")) {
+    refreshAllViews();
+  }
+}
+
+// ==================== DEVISES MONDIALES & VÉHICULE ÉLECTRIQUE ====================
+function getAllWorldCurrencyCodes() {
+  const priority = ["EUR", "USD", "GBP", "MUR", "CHF", "CAD", "JPY", "AUD", "CNY", "INR", "AED", "SAR", "MAD", "XOF", "XAF"];
+  let intlList = [];
+  try {
+    if (typeof Intl.supportedValuesOf === "function") {
+      intlList = Intl.supportedValuesOf("currency") || [];
     }
+  } catch {}
+  const combined = Array.from(new Set([...priority, ...intlList]));
+  const rest = combined.filter(c => !priority.includes(c)).sort();
+  return [...priority, ...rest];
+}
 
-    function populateCurrencySelect(selectedCode = "EUR") {
-      const select = document.getElementById("vehicle-currency");
-      select.innerHTML = "";
-      CURRENCY_CODES.forEach(code => {
-        const opt = document.createElement("option");
-        opt.value = code;
-        opt.textContent = getCurrencyLabel(code);
-        if (code === selectedCode) opt.selected = true;
-        select.appendChild(opt);
-      });
+function getCurrencyLabel(code) {
+  const lang = getLangMeta(getActiveLanguage()).locale;
+  try {
+    const dn = new Intl.DisplayNames([lang, "en"], { type: "currency" });
+    const name = dn.of(code);
+    return name && name !== code ? `${code} — ${name}` : code;
+  } catch {
+    return code;
+  }
+}
+
+function populateVehicleCurrencySelect(selectedCode = "EUR") {
+  const sel = document.getElementById("vCurrency");
+  if (!sel) return;
+  const codes = getAllWorldCurrencyCodes();
+  const target = String(selectedCode || "EUR").toUpperCase();
+  sel.innerHTML = codes.map(code =>
+    `<option value="${code}" ${code === target ? "selected" : ""}>${getCurrencyLabel(code)}</option>`
+  ).join("");
+}
+
+function isElectricVehicle(v) {
+  if (!v) return false;
+  const ft = String(v.fuelType || "").toLowerCase();
+  return ft.includes("électrique") || ft.includes("electrique") || ft.includes("electric") ||
+    ft.includes("100% élec") || ft.includes("100% elec") || ft === "ev" || ft === "bev";
+}
+
+function getEnergyUnit(v, overrideEnergyType = null) {
+  if (overrideEnergyType) {
+    const lower = String(overrideEnergyType).toLowerCase();
+    if (lower.includes("élec") || lower.includes("elec") || lower.includes("kwh") || lower === "kw") {
+      return "kWh";
     }
+    return "L";
+  }
+  return isElectricVehicle(v) ? "kWh" : "L";
+}
 
-    // État initial (sans devise globale au niveau du profil utilisateur)
-    const STORAGE_KEY = "autotrack_state_v2";
-    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-      user: {
-        name: "Utilisateur",
-        email: "utilisateur@exemple.fr"
-      },
-      activeVehicleId: "v1",
-      vehicles: [
+function getConsumptionUnit(v, overrideEnergyType = null) {
+  return `${getEnergyUnit(v, overrideEnergyType)}/100`;
+}
+
+// ==================== DONNÉES PAR DÉFAUT ====================
+const DEFAULT_DB = {
+  version: 2,
+  defaultLanguage: "FR",
+  defaultCurrency: "EUR",
+  lastUpdated: "2026-11-21T19:00:00Z",
+  users: [],
+  defaultVehicleByUser: {},
+  vehicles: [
+    {
+      id: "v_kimberly",
+      ownerId: null,
+      isDemo: true,
+      isUserCreated: false,
+      name: "Kimberly",
+      currency: "EUR",
+      brand: "Toyota",
+      model: "Auris 2",
+      version: "Technoline",
+      fuelType: "Hybride Essence",
+      year: 2018,
+      power: "5 CV",
+      purchasePrice: 18633.0,
+      purchaseDate: "2024-02-17",
+      initialOdometer: 75845,
+      nextInspectionDate: "2027-12-30",
+      depreciationFixedPerDay: 2.97126,
+      depreciationPerKmDay: 0.090022,
+      fuelLogs: [
+        { "date": "2024-02-17", "odometer": 75845, "cost": 0.0, "liters": 0.0, "pricePerLiter": 0.0, "distance": 0, "fuelType": "SP95 E10" },
+        { "date": "2024-02-24", "odometer": 75932, "cost": 71.56, "liters": 39.34, "pricePerLiter": 1.819, "distance": 87, "fuelType": "SP95 E10" },
+        { "date": "2026-11-20", "odometer": 127047, "cost": 60.32, "liters": 31.27, "pricePerLiter": 1.929, "distance": 519, "fuelType": "SP95 E12" }
+      ],
+      expenses: [
+        { "date": "2024-02-17", "odometer": 75845, "cost": 842.52, "info": "Assurance Tout Risque 2024" },
+        { "date": "2025-12-29", "odometer": 101085, "cost": 569.0, "info": "Entretien/Vidange chez Toyota (90000 km)" },
+        { "date": "2026-08-27", "odometer": 120288, "cost": 499.0, "info": "Entretien/Vidange chez Toyota (120000 km)" }
+      ]
+    }
+  ]
+};
+
+const STORAGE_KEY = "autotrack_db_v2";
+const SESSION_KEY = "autotrack_session_v2";
+const DEFAULT_VEHICLE_PREFIX = "autotrack_default_vehicle_";
+
+let db = loadDB();
+let currentUser = null;
+let activeVehicleId = null;
+let charts = {};
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.vehicles) && Array.isArray(parsed.users)) {
+        if (!parsed.defaultVehicleByUser || typeof parsed.defaultVehicleByUser !== "object") {
+          parsed.defaultVehicleByUser = {};
+        }
+        parsed.vehicles.forEach(v => {
+          if (v && !v.currency) {
+            v.currency = parsed.defaultCurrency || "EUR";
+          }
+        });
+        return parsed;
+      }
+    }
+  } catch (e) { console.error("Erreur lecture localStorage", e); }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_DB));
+  return JSON.parse(JSON.stringify(DEFAULT_DB));
+}
+
+function saveDB(markDirty = true) {
+  db.lastUpdated = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  if (markDirty) {
+    document.getElementById("unsavedBanner")?.classList.remove("hidden");
+    scheduleSupabaseSave();
+  }
+}
+
+function getPreferredVehicleId(userId) {
+  if (!userId) return null;
+  if (db?.defaultVehicleByUser && db.defaultVehicleByUser[userId]) {
+    return db.defaultVehicleByUser[userId];
+  }
+  try {
+    return localStorage.getItem(DEFAULT_VEHICLE_PREFIX + userId) || null;
+  } catch {
+    return null;
+  }
+}
+
+function setPreferredVehicleId(userId, vehicleId) {
+  if (!userId || !vehicleId) return;
+  if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") {
+    db.defaultVehicleByUser = {};
+  }
+  db.defaultVehicleByUser[userId] = vehicleId;
+  try {
+    localStorage.setItem(DEFAULT_VEHICLE_PREFIX + userId, vehicleId);
+  } catch (e) {
+    console.warn("Impossible d'enregistrer le véhicule par défaut en localStorage", e);
+  }
+}
+
+function resolveDefaultVehicleId(userId) {
+  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
+  if (!vehicles.length) return null;
+
+  const userVehicles = vehicles.filter(v => !userId || v.ownerId === userId);
+  const pool = userVehicles.length ? userVehicles : vehicles;
+
+  const customVehicles = pool.filter(v => v.isUserCreated === true || v.isDemo === false);
+  const preferredId = getPreferredVehicleId(userId);
+
+  if (preferredId) {
+    const preferredMatch = customVehicles.find(v => String(v.id) === String(preferredId))
+      || pool.find(v => String(v.id) === String(preferredId) && v.isDemo !== true);
+    if (preferredMatch) return preferredMatch.id;
+  }
+
+  if (customVehicles.length > 0) {
+    const latestCustom = [...customVehicles].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+    return latestCustom.id;
+  }
+
+  return pool[0].id;
+}
+
+function showToast(message, type = "info") {
+  const container = document.getElementById("toastContainer");
+  const el = document.createElement("div");
+  const styles = {
+    success: "bg-emerald-600 text-white",
+    error: "bg-red-600 text-white",
+    info: "bg-slate-900 text-white"
+  };
+  el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs sm:text-sm font-medium transition-all duration-300 ${styles[type] || styles.info}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 300);
+  }, 3800);
+}
+
+function showConfirmDialog(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirmModal");
+    document.getElementById("confirmMessage").textContent = message;
+    modal.classList.remove("hidden");
+
+    const cleanup = (result) => {
+      modal.classList.add("hidden");
+      document.getElementById("confirmOkBtn").onclick = null;
+      document.getElementById("confirmCancelBtn").onclick = null;
+      resolve(result);
+    };
+    document.getElementById("confirmOkBtn").onclick = () => cleanup(true);
+    document.getElementById("confirmCancelBtn").onclick = () => cleanup(false);
+  });
+}
+
+function initAppAfterLogin() {
+  document.getElementById("authWrapper")?.classList.add("hidden");
+  document.getElementById("appView")?.classList.remove("hidden");
+  const userBadge = document.getElementById("currentUserBadge");
+  if (userBadge) userBadge.textContent = "👤 " + (currentUser?.displayName || "Utilisateur");
+  updateHeaderProfileUI();
+
+  if (!db || typeof db !== "object") db = { users: [], vehicles: [], defaultVehicleByUser: {}, defaultCurrency: "EUR", defaultLanguage: "FR" };
+  if (!Array.isArray(db.vehicles)) db.vehicles = [];
+  if (!Array.isArray(db.users)) db.users = [];
+  if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+  db.vehicles.forEach(v => {
+    if (!v) return;
+    if (currentUser) v.ownerId = currentUser.id;
+    if (!v.currency) v.currency = db.defaultCurrency || "EUR";
+    if (v.isUserCreated === undefined) v.isUserCreated = v.id !== "v_kimberly";
+    if (v.isDemo === undefined) v.isDemo = !v.isUserCreated;
+  });
+
+  activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
+  populateVehicleSelector();
+  applyLanguageToDOM();
+
+  try { refreshAllViews(); } catch (e) { console.error("AutoTrack refreshAllViews", e); }
+  try { renderQuickAccess(); } catch (e) { console.error("AutoTrack renderQuickAccess", e); }
+  try { renderVehiclesTab(); } catch (e) { console.error("AutoTrack renderVehiclesTab", e); }
+}
+
+function getActiveVehicle() {
+  return db.vehicles.find(v => v.id === activeVehicleId) || db.vehicles[0] || null;
+}
+
+function populateVehicleSelector() {
+  const sel = document.getElementById("vehicleSelect");
+  if (!sel) return;
+  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
+  sel.replaceChildren();
+  if (vehicles.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = t("noVehicle");
+    sel.appendChild(option);
+    sel.value = "";
+    activeVehicleId = null;
+    return;
+  }
+  vehicles.forEach(v => {
+    const option = document.createElement("option");
+    option.value = String(v.id ?? "");
+    option.textContent = "🚘 " + String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule");
+    sel.appendChild(option);
+  });
+  const activeId = String(activeVehicleId ?? "");
+  sel.value = vehicles.some(v => String(v.id ?? "") === activeId)
+    ? activeId
+    : String(vehicles[0].id ?? "");
+  activeVehicleId = sel.value || null;
+  sel.disabled = false;
+}
+
+document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
+  activeVehicleId = e.target.value;
+  if (currentUser?.id && activeVehicleId) {
+    setPreferredVehicleId(currentUser.id, activeVehicleId);
+    saveDB(true);
+  }
+  refreshAllViews();
+});
+
+function computeVehicleMetrics(v) {
+  const sortedFuel = [...(v.fuelLogs || [])].sort((a, b) => a.odometer - b.odometer);
+  const enrichedFuel = [];
+  let totalFuelCost = 0;
+  let totalLiters = 0;
+  let totalFuelDist = 0;
+  let validConsoList = [];
+
+  for (let i = 0; i < sortedFuel.length; i++) {
+    const row = sortedFuel[i];
+    const prev = i > 0 ? sortedFuel[i - 1] : null;
+    const days = prev ? Math.max(0, Math.round((new Date(row.date) - new Date(prev.date)) / 86400000)) : null;
+    const dist = prev ? Math.max(0, row.odometer - prev.odometer) : 0;
+    const liters = row.liters || (row.pricePerLiter > 0 ? row.cost / row.pricePerLiter : 0);
+    const conso100 = (dist > 0 && liters > 0) ? (liters / dist) * 100 : null;
+    const cost100 = (dist > 0 && row.cost > 0) ? (row.cost / dist) * 100 : null;
+
+    if (row.cost > 0) {
+      totalFuelCost += row.cost;
+      totalLiters += liters;
+      totalFuelDist += dist;
+    }
+    if (conso100 !== null && i >= 2) {
+      validConsoList.push({ ...row, days, dist, liters, conso100, cost100 });
+    }
+    enrichedFuel.push({ ...row, days, dist, liters, conso100, cost100 });
+  }
+
+  const sortedExp = [...(v.expenses || [])].sort((a, b) => new Date(a.date) - new Date(b.date) || a.odometer - b.odometer);
+  let totalExpenses = 0;
+  const enrichedExp = sortedExp.map(item => {
+    totalExpenses += Number(item.cost || 0);
+    return {
+      ...item,
+      distSincePurchase: item.odometer > 0 ? Math.max(0, item.odometer - v.initialOdometer) : 0
+    };
+  });
+
+  const odoEvents = [{ date: v.purchaseDate, odometer: v.initialOdometer }];
+  sortedFuel.forEach(f => {
+    if (f.date && f.odometer > 0) odoEvents.push({ date: f.date, odometer: f.odometer });
+  });
+  sortedExp.forEach(e => {
+    if (e.date && e.odometer > 0) odoEvents.push({ date: e.date, odometer: e.odometer });
+  });
+  odoEvents.sort((a, b) => a.date.localeCompare(b.date) || a.odometer - b.odometer);
+
+  const distanceByYear = {};
+  let runningMaxOdo = v.initialOdometer;
+  odoEvents.forEach(ev => {
+    const yr = (ev.date || "").slice(0, 4);
+    if (!yr) return;
+    if (ev.odometer > runningMaxOdo) {
+      const delta = ev.odometer - runningMaxOdo;
+      distanceByYear[yr] = (distanceByYear[yr] || 0) + delta;
+      runningMaxOdo = ev.odometer;
+    } else if (!(yr in distanceByYear)) {
+      distanceByYear[yr] = 0;
+    }
+  });
+
+  const maxFuelOdo = sortedFuel.length ? sortedFuel[sortedFuel.length - 1].odometer : v.initialOdometer;
+  const maxExpOdo = sortedExp.length ? Math.max(...sortedExp.map(e => e.odometer || 0)) : v.initialOdometer;
+  const currentOdometer = Math.max(v.initialOdometer, maxFuelOdo, maxExpOdo);
+  const totalKmDriven = Math.max(0, currentOdometer - v.initialOdometer);
+  const calcDenominatorKm = Math.max(1, totalKmDriven);
+
+  const purchaseDt = new Date(v.purchaseDate);
+  const today = new Date();
+  const daysOwned = Math.max(1, Math.floor((today - purchaseDt) / 86400000));
+  const yearsOwned = Math.floor(daysOwned / 365);
+  const remDays = daysOwned % 365;
+
+  const kmPerDay = calcDenominatorKm / daysOwned;
+  const kmPerWeek = kmPerDay * 7;
+  const kmPerYear = kmPerDay * 365;
+  const fixedRate = v.depreciationFixedPerDay !== undefined ? v.depreciationFixedPerDay : 2.97126;
+  const kmRate = v.depreciationPerKmDay !== undefined ? v.depreciationPerKmDay : 0.090022;
+  const depPerDay = fixedRate + (kmRate * kmPerDay);
+  const depPerMonth = (365 * depPerDay) / 12;
+  const totalDepreciation = Math.min(v.purchasePrice, daysOwned * depPerDay);
+  const currentValue = Math.max(0, v.purchasePrice - totalDepreciation);
+
+  const runningAndDepCost = totalFuelCost + totalExpenses + totalDepreciation;
+  const costPerDay = runningAndDepCost / daysOwned;
+  const costPerKm = runningAndDepCost / calcDenominatorKm;
+  const purchaseCostPerDay = v.purchasePrice / daysOwned;
+  const purchaseCostPerKm = v.purchasePrice / calcDenominatorKm;
+  const totalCostPerDay = costPerDay + purchaseCostPerDay;
+  const totalCostPerKm = costPerKm + purchaseCostPerKm;
+  const totalCostPerMonth = totalCostPerDay * 30;
+  const fuelCostPerKm = totalFuelCost / calcDenominatorKm;
+
+  const avgConso100 = validConsoList.length
+    ? validConsoList.reduce((s, x) => s + x.conso100, 0) / validConsoList.length
+    : (totalFuelDist > 0 ? (totalLiters / totalFuelDist) * 100 : 0);
+  const minConso = validConsoList.length ? Math.min(...validConsoList.map(x => x.conso100)) : 0;
+  const maxConso = validConsoList.length ? Math.max(...validConsoList.map(x => x.conso100)) : 0;
+  const pricedLogs = sortedFuel.filter(x => x.pricePerLiter > 0);
+  const minPriceLiter = pricedLogs.length ? Math.min(...pricedLogs.map(x => x.pricePerLiter)) : 0;
+  const maxPriceLiter = pricedLogs.length ? Math.max(...pricedLogs.map(x => x.pricePerLiter)) : 0;
+
+  const insuranceByYear = {};
+  const expenseCategoriesByYear = {
+    Assurance: {},
+    Entretien: {},
+    Divers: {},
+    Accessoires: {},
+    Pneus: {},
+    Lavage: {}
+  };
+  enrichedExp.forEach(item => {
+    const infoLower = (item.info || "").toLowerCase();
+    const cat = item.category || categorizeExpense(item.info || "");
+    const yr = (item.date || "").slice(0, 4);
+    if (yr) {
+      if (cat === "Assurance" || infoLower.includes("assurance")) {
+        insuranceByYear[yr] = (insuranceByYear[yr] || 0) + Number(item.cost || 0);
+        expenseCategoriesByYear.Assurance[yr] = (expenseCategoriesByYear.Assurance[yr] || 0) + Number(item.cost || 0);
+      } else if (expenseCategoriesByYear[cat]) {
+        expenseCategoriesByYear[cat][yr] = (expenseCategoriesByYear[cat][yr] || 0) + Number(item.cost || 0);
+      }
+    }
+  });
+
+  const oilChangeEntries = enrichedExp
+    .filter(e => /vidange/i.test(e.info || ""))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || (b.odometer || 0) - (a.odometer || 0));
+  const lastOilChange = oilChangeEntries[0] || { date: "2026-08-27", odometer: 120288 };
+  const lastOilChangeOdo = Number(lastOilChange.odometer) || 120288;
+  const lastOilChangeDateStr = lastOilChange.date || "2026-08-27";
+  const targetOilChangeOdo = lastOilChangeOdo + 15000;
+  const kmRemainingToOilChange = Math.max(0, targetOilChangeOdo - currentOdometer);
+
+  const dateByYearLimit = new Date(lastOilChangeDateStr + "T12:00:00");
+  dateByYearLimit.setFullYear(dateByYearLimit.getFullYear() + 1);
+
+  let dateByKmLimit = null;
+  if (kmPerWeek > 0) {
+    const weeksRemaining = kmRemainingToOilChange / kmPerWeek;
+    dateByKmLimit = new Date(today.getTime() + weeksRemaining * 7 * 86400000);
+  }
+
+  let nextOilChangeDate = dateByYearLimit;
+  let nextOilChangeReason = "échéance 1 an";
+  if (dateByKmLimit && dateByKmLimit < dateByYearLimit) {
+    nextOilChangeDate = dateByKmLimit;
+    nextOilChangeReason = "échéance 15 000 km";
+  }
+
+  return {
+    enrichedFuel, enrichedExp, totalFuelCost, totalLiters, totalExpenses, insuranceByYear, expenseCategoriesByYear,
+    currentOdometer, totalKmDriven, distanceByYear, daysOwned, yearsOwned, remDays,
+    kmPerDay, kmPerWeek, kmPerYear, depPerDay, depPerMonth, totalDepreciation, currentValue,
+    costPerDay, costPerKm, totalCostPerDay, totalCostPerMonth, totalCostPerKm, fuelCostPerKm,
+    avgConso100, minConso, maxConso, minPriceLiter, maxPriceLiter,
+    lastOilChangeOdo, lastOilChangeDateStr, targetOilChangeOdo, kmRemainingToOilChange,
+    nextOilChangeDate, nextOilChangeReason
+  };
+}
+
+// ==================== FORMATAGE DEVISE (PAR VÉHICULE) ====================
+function getVehicleCurrencyCode(v = null) {
+  const veh = v || getActiveVehicle();
+  const code = (veh && veh.currency) || db.defaultCurrency || "EUR";
+  return String(code).toUpperCase();
+}
+
+function getCurrencySymbol(v = null) {
+  const code = getVehicleCurrencyCode(v);
+  if (code === "EUR") return "€";
+  if (code === "USD") return "$";
+  if (code === "GBP") return "£";
+  if (code === "MUR") return "Rs";
+  const locale = getLangMeta(getActiveLanguage()).locale;
+  try {
+    const parts = new Intl.NumberFormat(locale, { style: "currency", currency: code }).formatToParts(1);
+    const sym = parts.find(p => p.type === "currency")?.value;
+    return sym || code;
+  } catch {
+    return code;
+  }
+}
+
+function fmtEur(n, dec = 2, v = null) {
+  const val = Number(n || 0);
+  const code = getVehicleCurrencyCode(v);
+  const locale = getLangMeta(getActiveLanguage()).locale;
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: dec,
+      maximumFractionDigits: dec
+    }).format(val);
+  } catch {
+    return `${fmtNum(val, dec)} ${code}`;
+  }
+}
+
+function fmtNum(n, dec = 2) {
+  const locale = getLangMeta(getActiveLanguage()).locale;
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n || 0);
+}
+
+function applyCurrencyAndUnitLabelsToDOM(v) {
+  const sym = getCurrencySymbol(v);
+  const code = getVehicleCurrencyCode(v);
+  const unit = getEnergyUnit(v);
+  const consoUnit = getConsumptionUnit(v);
+
+  const dashValTitle = document.getElementById("dashValueTitle");
+  if (dashValTitle) dashValTitle.textContent = `📉 Décote & Valeur Résiduelle (${sym})`;
+
+  const oilHead = document.querySelector("#tab-dashboard table thead tr");
+  if (oilHead) {
+    oilHead.innerHTML = `
+      <th class="py-2 px-2">Date</th>
+      <th class="py-2 px-2">Kilométrage</th>
+      <th class="py-2 px-2">Description</th>
+      <th class="py-2 px-2 text-right">Montant (${sym})</th>
+    `;
+  }
+
+  const fuelHead = document.querySelector("#tab-fuel-details thead tr");
+  if (fuelHead) {
+    fuelHead.innerHTML = `
+      <th class="py-3 px-3">Date</th>
+      <th class="py-3 px-3">Jours</th>
+      <th class="py-3 px-3">Compteur / km</th>
+      <th class="py-3 px-3">Distance (km)</th>
+      <th class="py-3 px-3">${unit}</th>
+      <th class="py-3 px-3">Prix/${unit} (${sym})</th>
+      <th class="py-3 px-3">Montant (${sym})</th>
+      <th class="py-3 px-3">Conso (${consoUnit})</th>
+      <th class="py-3 px-3">Prix/km (${sym})</th>
+      <th class="py-3 px-3">Coût/100 km</th>
+      <th class="py-3 px-3">Actions</th>
+    `;
+  }
+
+  const expCatTitle = document.getElementById("expCatChartTitle");
+  if (expCatTitle) expCatTitle.textContent = `🧩 Répartition par Catégorie (${sym})`;
+  const expYearTitle = document.getElementById("expYearChartTitle");
+  if (expYearTitle) expYearTitle.textContent = `📅 Évolution Annuelle des Dépenses (${sym})`;
+
+  const expHead = document.querySelector("#tab-expenses-details thead tr");
+  if (expHead) {
+    expHead.innerHTML = `
+      <th class="py-3 px-3">Date</th>
+      <th class="py-3 px-3">Catégorie</th>
+      <th class="py-3 px-3">Compteur (km)</th>
+      <th class="py-3 px-3">Distance</th>
+      <th class="py-3 px-3">Montant (${sym})</th>
+      <th class="py-3 px-3">Description / Infos</th>
+      <th class="py-3 px-3">Actions</th>
+    `;
+  }
+
+  const benHead = document.querySelector("#tab-benefits thead tr");
+  if (benHead) {
+    benHead.innerHTML = `<th class="py-3 px-3">Date</th><th class="py-3 px-3">Montant (${sym})</th><th class="py-3 px-3">Actions</th>`;
+  }
+
+  const fCostLbl = document.getElementById("fCostLabel");
+  if (fCostLbl) fCostLbl.textContent = `Coût total (${sym} / ${code})`;
+  const eCostLbl = document.getElementById("eCostLabel");
+  if (eCostLbl) eCostLbl.textContent = `Montant (${sym} / ${code})`;
+  const vPriceLbl = document.getElementById("vPurchasePriceLabel");
+  if (vPriceLbl) vPriceLbl.textContent = `Prix d'achat (${sym} / ${code})`;
+  const bAmtLbl = document.getElementById("bAmountLabel");
+  if (bAmtLbl) bAmtLbl.textContent = `Montant (${sym} / ${code})`;
+}
+
+function refreshAllViews() {
+  const v = getActiveVehicle();
+  const banner = document.getElementById("vehicleBanner");
+  if (banner) { banner.innerHTML = ""; banner.classList.add("hidden"); }
+  const emptyState = document.getElementById("emptyVehicleState");
+
+  if (!v) {
+    emptyState.classList.remove("hidden");
+    return;
+  }
+
+  emptyState.classList.add("hidden");
+  applyLanguageToDOM();
+  applyCurrencyAndUnitLabelsToDOM(v);
+
+  const m = computeVehicleMetrics(v);
+  const unit = getEnergyUnit(v);
+  const consoUnit = getConsumptionUnit(v);
+  const depPercent = v.purchasePrice > 0 ? (m.totalDepreciation / v.purchasePrice) * 100 : 0;
+  const sortedYears = Object.keys(m.distanceByYear).sort();
+  const yearPastels = {"2024":"#dcfce7", "2025":"#dbeafe", "2026":"#fef3c7", "2027":"#fce7f3", "2028":"#ede9fe", "2029":"#cffafe"};
+  const yearColor = yr => yearPastels[yr] || ["#e0f2fe","#dcfce7","#fef3c7","#fce7f3","#ede9fe","#cffafe"][Number(yr)%6];
+  const yearlyDistancesHtml = sortedYears.length > 0
+    ? sortedYears.map(yr => `<span class="inline-flex rounded-lg px-2 py-1 mb-1" style="background:${yearColor(yr)}">${yr}: <strong class="ml-1">${fmtNum(m.distanceByYear[yr], 0)} km</strong></span>`).join(" ")
+    : "Aucune distance enregistrée";
+
+  const renderCatYearLine = (label, colorClass, dataObj) => {
+    const yrs = Object.keys(dataObj || {}).sort();
+    const prefix = label ? `<span class="font-semibold ${colorClass}">${label} :</span> ` : "";
+    return `
+      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">
+        ${prefix}${yrs.length > 0
+          ? `<div class="grid grid-cols-3 gap-2 w-full">${yrs.map(yr => `<span class="flex items-center justify-center w-full min-w-0 box-border rounded-lg px-2 py-1.5 text-xs whitespace-nowrap" style="background:${yearColor(yr)}">${yr}: <strong class="ml-1">${fmtEur(dataObj[yr], 2, v)}</strong></span>`).join("")}</div>`
+          : "Aucune"}
+      </div>
+    `;
+  };
+
+  const totalAssurance = Object.values(m.expenseCategoriesByYear.Assurance || {}).reduce((a, b) => a + b, 0);
+  const totalEntretien = Object.values(m.expenseCategoriesByYear.Entretien || {}).reduce((a, b) => a + b, 0);
+  const totalLavage = Object.values(m.expenseCategoriesByYear.Lavage || {}).reduce((a, b) => a + b, 0);
+
+  document.getElementById("kpiGrid").innerHTML = `
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Valeur Actuelle Estimée</div>
+      <div class="text-2xl font-bold text-emerald-600">${fmtEur(m.currentValue, 2, v)}</div>
+      <div class="text-xs text-slate-500 mt-1.5">Prix d'achat : <strong class="text-slate-700">${fmtEur(v.purchasePrice, 2, v)}</strong></div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Décote (${fmtNum(depPercent, 2)}%)</div>
+      <div class="text-2xl font-bold text-red-600">-${fmtEur(m.totalDepreciation, 2, v)}</div>
+      <div class="text-xs text-slate-500 mt-1.5">${fmtEur(m.depPerDay, 2, v)} / jour • ${fmtEur(m.depPerMonth, 2, v)} / mois</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Consommation</div>
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span class="text-2xl font-bold text-blue-600">${fmtNum(m.avgConso100, 2)} ${consoUnit}</span>
+        <span class="text-slate-300 font-bold">•</span>
+        <span class="text-2xl font-bold text-slate-900">${fmtEur(m.fuelCostPerKm, 2, v)} / km</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-1.5"><strong class="text-slate-700">${fmtEur(m.totalFuelCost, 2, v)}</strong> (${fmtNum(m.totalLiters, 2)} ${unit}) • Min : ${fmtNum(m.minConso, 2)} ${consoUnit} • Max : ${fmtNum(m.maxConso, 2)} ${consoUnit}</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Distance</div>
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <div class="text-2xl font-bold text-indigo-600">${fmtNum(m.totalKmDriven, 0)} km</div>
+        <div class="text-xs font-semibold text-slate-700 bg-indigo-50 px-2.5 py-1 rounded-lg">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
+      </div>
+      <div class="text-xs text-slate-500 mt-1.5 leading-relaxed">${yearlyDistancesHtml}</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Assurance</div>
+      <div class="text-2xl font-bold text-blue-600">${fmtEur(totalAssurance, 2, v)}</div>
+      ${renderCatYearLine("", "text-blue-600", m.expenseCategoriesByYear.Assurance)}
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Entretien</div>
+      <div class="text-2xl font-bold text-emerald-600">${fmtEur(totalEntretien, 2, v)}</div>
+      ${renderCatYearLine("", "text-emerald-600", m.expenseCategoriesByYear.Entretien)}
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lavage</div>
+      <div class="text-2xl font-bold text-cyan-600">${fmtEur(totalLavage, 2, v)}</div>
+      ${renderCatYearLine("", "text-cyan-600", m.expenseCategoriesByYear.Lavage)}
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Divers</div>
+      <div class="text-2xl font-bold text-violet-600">${fmtEur(Object.values(m.expenseCategoriesByYear.Divers || {}).reduce((a,b)=>a+b,0), 2, v)}</div>
+      ${renderCatYearLine("", "text-violet-600", m.expenseCategoriesByYear.Divers)}
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Accessoires</div>
+      <div class="text-2xl font-bold text-pink-600">${fmtEur(Object.values(m.expenseCategoriesByYear.Accessoires || {}).reduce((a,b)=>a+b,0), 2, v)}</div>
+      ${renderCatYearLine("", "text-pink-600", m.expenseCategoriesByYear.Accessoires)}
+    </div>
+  `;
+
+  const expsWithCat = m.enrichedExp.map(e => ({ ...e, category: e.category || categorizeExpense(e.info) }));
+  const oilChanges = expsWithCat.filter(e => {
+    const description = String(e.info || e.description || "").toLowerCase();
+    return /vidange|entretien/.test(description) || String(e.category || "").toLowerCase() === "entretien";
+  }).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+  const oilBody = document.getElementById("oilChangeTableBody");
+  const oilCount = document.getElementById("oilChangeCount");
+  if (oilCount) oilCount.textContent = `${oilChanges.length} entretien(s)`;
+  if (oilBody) {
+    oilBody.innerHTML = oilChanges.length ? oilChanges.map(e => {
+      const parts = String(e.date || "").split("-");
+      const formattedDate = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : "—";
+      const odo = Number(e.odometer || 0);
+      const rawDesc = String(e.info || e.description || "Entretien / vidange");
+      const shortDesc = rawDesc.split("-->")[0].trim();
+      const escapedShort = shortDesc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escapedFull = rawDesc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      return `<tr class="hover:bg-slate-50 whitespace-nowrap" title="${escapedFull}"><td class="py-2 px-2 font-medium text-slate-700">${formattedDate}</td><td class="py-2 px-2">${odo > 0 ? odo.toLocaleString("fr-FR") + " km" : "—"}</td><td class="py-2 px-2 truncate max-w-[230px]" title="${escapedFull}">${escapedShort}</td><td class="py-2 px-2 text-right font-semibold">${fmtEur(Number(e.cost || 0), 2, v)}</td></tr>`;
+    }).join("") : `<tr><td colspan="4" class="py-6 px-3 text-center text-slate-400">Aucune vidange ou entretien enregistré.</td></tr>`;
+  }
+
+  renderCharts(v, m);
+  renderFuelDetailsTab();
+  renderExpenseTable();
+  renderExpenseDetailsTab();
+  renderBenefitsTab();
+  renderVehiclesTab();
+  renderQuickAccess();
+}
+
+function renderCharts(v, m) {
+  const sym = getCurrencySymbol(v);
+  const consoUnit = getConsumptionUnit(v);
+  const validLogs = m.enrichedFuel.filter(x => x.conso100 !== null && x.date !== "2024-02-24");
+  const ctxConso = document.getElementById("consoChart").getContext("2d");
+  if (charts.conso) charts.conso.destroy();
+  charts.conso = new Chart(ctxConso, {
+    type: "line",
+    data: {
+      labels: validLogs.map(x => x.date),
+      datasets: [{
+        label: `Conso (${consoUnit} km)`,
+        data: validLogs.map(x => Number(x.conso100.toFixed(2))),
+        borderColor: "#2563eb",
+        backgroundColor: "rgba(37, 99, 235, 0.12)",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: false, title: { display: true, text: `${consoUnit} km` } },
+        x: { ticks: { maxTicksLimit: 8 } }
+      }
+    }
+  });
+
+  const startDt = new Date(v.purchaseDate);
+  const nowDt = new Date();
+  const steps = 12;
+  const valLabels = [];
+  const valSeries = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = new Date(startDt.getTime() + ((nowDt - startDt) * i) / steps);
+    const d = Math.max(0, Math.floor((t - startDt) / 86400000));
+    valLabels.push(t.toISOString().slice(0, 10));
+    const projectedKm = m.kmPerDay * d;
+    const depreciation = Math.min(v.purchasePrice, (v.depreciationFixedPerDay || 2.97126) * d + (v.depreciationPerKmDay || 0.090022) * projectedKm);
+    valSeries.push(Math.max(0, Number((v.purchasePrice - depreciation).toFixed(0))));
+  }
+  const dailyFixed = (v.depreciationFixedPerDay || 2.97126);
+  const dailyKmFactor = (v.depreciationPerKmDay || 0.090022) * m.kmPerDay;
+  const dailyDep = dailyFixed + dailyKmFactor;
+  const daysTo5000 = dailyDep > 0 ? Math.max(0, (v.purchasePrice - 5000) / dailyDep) : null;
+  const date5000 = daysTo5000 !== null ? new Date(startDt.getTime() + daysTo5000 * 86400000) : null;
+  const date5000Label = date5000 && isFinite(date5000.getTime()) ? date5000.toLocaleDateString("fr-FR") : "indéterminée";
+  const ctxVal = document.getElementById("valueChart").getContext("2d");
+  if (charts.val) charts.val.destroy();
+  charts.val = new Chart(ctxVal, {
+    type: "line",
+    data: {
+      labels: valLabels,
+      datasets: [{
+        label: `Valeur estimée (${sym})`,
+        data: valSeries,
+        borderColor: "#059669",
+        backgroundColor: "rgba(5, 150, 105, 0.12)",
+        fill: true,
+        tension: 0.25
+      }, {
+        label: `Seuil 5 000 ${sym} (atteint vers ${date5000Label})`,
+        data: valLabels.map(() => 5000),
+        borderColor: "#dc2626",
+        borderDash: [6, 5],
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { boxWidth: 20 } } },
+      scales: {
+        y: { min: 0, title: { display: true, text: `Montant (${sym})` } },
+        x: { ticks: { maxTicksLimit: 6 } }
+      }
+    }
+  });
+
+  const benefitList = Array.isArray(v.benefits) ? [...v.benefits].sort((a, b) => a.date.localeCompare(b.date)) : [];
+  const totalCostAll = Number(m.totalExpenses || 0) + Number(m.totalFuelCost || 0) + Number(v.purchasePrice || 0);
+  const dailyTotals = {};
+  benefitList.forEach(x => {
+    if (x.date) dailyTotals[x.date] = (dailyTotals[x.date] || 0) + Number(x.amount || 0);
+  });
+  const historyDates = Object.keys(dailyTotals).sort();
+  let runningBen = 0;
+  const gapSeries = historyDates.map(d => {
+    runningBen += dailyTotals[d];
+    return Number((runningBen - totalCostAll).toFixed(2));
+  });
+  const currentDiff = runningBen - totalCostAll;
+  const dashBadge = document.getElementById("dashboardBenefitBadge");
+  if (dashBadge) {
+    dashBadge.textContent = `Solde : ${fmtEur(currentDiff, 2, v)}`;
+    dashBadge.className = currentDiff >= 0
+      ? "text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800"
+      : "text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800";
+  }
+
+  const dashLabels = historyDates.length ? historyDates.map(d => new Date(d + "T00:00:00").toLocaleDateString("fr-FR")) : ["Actuel"];
+  const dashValues = gapSeries.length ? gapSeries : [Number((-totalCostAll).toFixed(2))];
+
+  const ctxDashBen = document.getElementById("dashboardBenefitGapChart").getContext("2d");
+  if (charts.dashboardBenefitGap) charts.dashboardBenefitGap.destroy();
+  charts.dashboardBenefitGap = new Chart(ctxDashBen, {
+    type: "bar",
+    data: {
+      labels: dashLabels,
+      datasets: [
         {
-          id: "v1",
-          name: "Voiture Électrique",
-          energy: "Électrique",
-          currency: "EUR",
-          plate: "EV-001-FR",
-          odometer: 24500,
-          refuels: [
-            { id: "r1", date: "2026-11-10", type: "Électrique", km: 24000, qty: 45, cost: 11.25 },
-            { id: "r2", date: "2026-11-22", type: "Électrique", km: 24500, qty: 80, cost: 20.00 }
-          ]
+          type: "bar",
+          label: `Écart Bénéfices − Coût (${sym})`,
+          data: dashValues,
+          backgroundColor: dashValues.map(val => val >= 0 ? "rgba(16, 185, 129, 0.75)" : "rgba(244, 63, 94, 0.75)"),
+          borderColor: dashValues.map(val => val >= 0 ? "#059669" : "#e11d48"),
+          borderWidth: 1.5,
+          borderRadius: 6
         },
         {
-          id: "v2",
-          name: "Citadine Essence",
-          energy: "Essence",
-          currency: "EUR",
-          plate: "AB-456-CD",
-          odometer: 68200,
-          refuels: [
-            { id: "r3", date: "2026-11-12", type: "Essence", km: 67700, qty: 28, cost: 49.00 },
-            { id: "r4", date: "2026-11-24", type: "Essence", km: 68200, qty: 27.5, cost: 48.12 }
-          ]
+          type: "line",
+          label: "Trajectoire",
+          data: dashValues,
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99, 102, 241, 0.15)",
+          tension: 0.3,
+          pointRadius: 3,
+          fill: false
         }
       ]
-    };
-
-    function setSaveStatus(text = "Données sauvegardées") {
-      document.getElementById("sync-status").textContent = text;
-    }
-
-    function saveState() {
-      setSaveStatus("Sauvegarde en cours...");
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      setTimeout(() => setSaveStatus("Données sauvegardées"), 150);
-    }
-
-    function getActiveVehicle() {
-      return state.vehicles.find(v => v.id === state.activeVehicleId) || state.vehicles[0] || null;
-    }
-
-    function isElectricVehicle(vehicle) {
-      return vehicle && vehicle.energy === "Électrique";
-    }
-
-    function getConsoUnit(vehicle) {
-      return isElectricVehicle(vehicle) ? "kWh/100" : "L/100";
-    }
-
-    function getQtyUnit(refuelType, vehicle) {
-      if (refuelType === "Électrique" || (isElectricVehicle(vehicle) && !refuelType)) {
-        return "kWh";
-      }
-      return "L";
-    }
-
-    function formatMoney(amount, currencyCode) {
-      const code = currencyCode || "EUR";
-      try {
-        return new Intl.NumberFormat("fr-FR", {
-          style: "currency",
-          currency: code,
-          maximumFractionDigits: 2
-        }).format(amount || 0);
-      } catch {
-        return `${Number(amount || 0).toFixed(2)} ${code}`;
-      }
-    }
-
-    function computeConsumptions(vehicle) {
-      if (!vehicle || !Array.isArray(vehicle.refuels)) return [];
-      const sorted = [...vehicle.refuels].sort((a, b) => a.km - b.km);
-      return sorted.map((entry, idx) => {
-        if (idx === 0) return { ...entry, conso: null };
-        const prev = sorted[idx - 1];
-        const dist = entry.km - prev.km;
-        if (dist <= 0) return { ...entry, conso: null };
-        const conso = (entry.qty / dist) * 100;
-        return { ...entry, conso };
-      });
-    }
-
-    function render() {
-      const vehicle = getActiveVehicle();
-      document.getElementById("header-user-name").textContent = state.user?.name || "Profil";
-      document.getElementById("profile-name").textContent = state.user?.name || "Utilisateur";
-      document.getElementById("profile-email").textContent = state.user?.email || "—";
-
-      const select = document.getElementById("vehicle-select");
-      select.innerHTML = "";
-      state.vehicles.forEach(v => {
-        const opt = document.createElement("option");
-        opt.value = v.id;
-        opt.textContent = `${v.name} (${v.currency})`;
-        if (vehicle && v.id === vehicle.id) opt.selected = true;
-        select.appendChild(opt);
-      });
-
-      if (!vehicle) return;
-
-      const unit = getConsoUnit(vehicle);
-      const currency = vehicle.currency || "EUR";
-
-      document.getElementById("vehicle-meta").innerHTML = `
-        <span>Motorisation : <strong class="text-slate-200">${vehicle.energy}</strong></span>
-        <span>Devise : <strong class="text-slate-200">${getCurrencyLabel(currency)}</strong></span>
-        ${vehicle.plate ? `<span>Plaque : <strong class="text-slate-200">${vehicle.plate}</strong></span>` : ""}
-      `;
-
-      document.getElementById("th-conso").textContent = `Conso (${unit})`;
-      document.getElementById("kpi-conso-unit").textContent = `Unité : ${unit}`;
-      document.getElementById("kpi-currency-label").textContent = `Devise du véhicule : ${currency}`;
-
-      const rowsWithConso = computeConsumptions(vehicle);
-      const validConsos = rowsWithConso.map(r => r.conso).filter(c => typeof c === "number" && !Number.isNaN(c));
-      const avgConso = validConsos.length
-        ? validConsos.reduce((acc, n) => acc + n, 0) / validConsos.length
-        : null;
-      const lastConso = validConsos.length ? validConsos[validConsos.length - 1] : null;
-      const totalCost = (vehicle.refuels || []).reduce((acc, r) => acc + (Number(r.cost) || 0), 0);
-
-      document.getElementById("kpi-avg-conso").textContent =
-        avgConso !== null ? `${avgConso.toFixed(1)} ${unit}` : "—";
-      document.getElementById("kpi-last-conso").textContent =
-        lastConso !== null ? `${lastConso.toFixed(1)} ${unit}` : "—";
-      document.getElementById("kpi-total-cost").textContent = formatMoney(totalCost, currency);
-      document.getElementById("kpi-odometer").textContent = `${Number(vehicle.odometer || 0).toLocaleString("fr-FR")} km`;
-
-      const tbody = document.getElementById("refuel-table-body");
-      tbody.innerHTML = "";
-      const reversed = [...rowsWithConso].reverse();
-      document.getElementById("refuel-count").textContent = `${reversed.length} entrée${reversed.length > 1 ? "s" : ""}`;
-
-      reversed.forEach(item => {
-        const qtyUnit = getQtyUnit(item.type, vehicle);
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-800/40";
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-slate-200">${item.date}</td>
-          <td class="py-3 px-4 text-slate-300">${item.type}</td>
-          <td class="py-3 px-4 text-slate-300">${Number(item.km).toLocaleString("fr-FR")} km</td>
-          <td class="py-3 px-4 text-slate-300">${Number(item.qty).toFixed(2)} ${qtyUnit}</td>
-          <td class="py-3 px-4 text-slate-200 font-medium">${formatMoney(item.cost, currency)}</td>
-          <td class="py-3 px-4 text-indigo-300">${item.conso !== null ? `${item.conso.toFixed(1)} ${unit}` : "—"}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function openModal(id) {
-      const el = document.getElementById(id);
-      el.classList.remove("hidden");
-      el.classList.add("flex");
-    }
-
-    function closeModal(id) {
-      const el = document.getElementById(id);
-      el.classList.add("hidden");
-      el.classList.remove("flex");
-    }
-
-    document.querySelectorAll("[data-close]").forEach(btn => {
-      btn.addEventListener("click", () => closeModal(btn.dataset.close));
-    });
-
-    document.getElementById("vehicle-select").addEventListener("change", (e) => {
-      state.activeVehicleId = e.target.value;
-      saveState();
-      render();
-    });
-
-    // Ouvrir modale ajout véhicule
-    document.getElementById("btn-add-vehicle").addEventListener("click", () => {
-      document.getElementById("modal-vehicle-title").textContent = "Nouveau véhicule";
-      document.getElementById("vehicle-id").value = "";
-      document.getElementById("vehicle-name").value = "";
-      document.getElementById("vehicle-energy").value = "Électrique";
-      document.getElementById("vehicle-plate").value = "";
-      document.getElementById("vehicle-odometer").value = "0";
-      populateCurrencySelect("EUR");
-      openModal("modal-vehicle");
-    });
-
-    // Ouvrir modale édition véhicule
-    document.getElementById("btn-edit-vehicle").addEventListener("click", () => {
-      const v = getActiveVehicle();
-      if (!v) return;
-      document.getElementById("modal-vehicle-title").textContent = "Modifier le véhicule";
-      document.getElementById("vehicle-id").value = v.id;
-      document.getElementById("vehicle-name").value = v.name;
-      document.getElementById("vehicle-energy").value = v.energy;
-      document.getElementById("vehicle-plate").value = v.plate || "";
-      document.getElementById("vehicle-odometer").value = v.odometer || 0;
-      populateCurrencySelect(v.currency || "EUR");
-      openModal("modal-vehicle");
-    });
-
-    // Enregistrer véhicule
-    document.getElementById("form-vehicle").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const id = document.getElementById("vehicle-id").value;
-      const payload = {
-        name: document.getElementById("vehicle-name").value.trim(),
-        energy: document.getElementById("vehicle-energy").value,
-        currency: document.getElementById("vehicle-currency").value,
-        plate: document.getElementById("vehicle-plate").value.trim(),
-        odometer: Number(document.getElementById("vehicle-odometer").value) || 0
-      };
-
-      if (id) {
-        const idx = state.vehicles.findIndex(v => v.id === id);
-        if (idx !== -1) {
-          state.vehicles[idx] = { ...state.vehicles[idx], ...payload };
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label} : ${fmtEur(ctx.parsed.y, 2, v)}`
+          }
         }
-      } else {
-        const newId = "v_" + Date.now();
-        state.vehicles.push({ id: newId, refuels: [], ...payload });
-        state.activeVehicleId = newId;
+      },
+      scales: {
+        y: { title: { display: true, text: `Écart (${sym})` } },
+        x: { ticks: { maxTicksLimit: 7 } }
       }
-
-      saveState();
-      render();
-      closeModal("modal-vehicle");
-    });
-
-    function syncRefuelFormUnits(vehicle) {
-      const typeSelect = document.getElementById("refuel-type");
-      const isElecType = typeSelect.value === "Électrique";
-      const currency = (vehicle && vehicle.currency) || "EUR";
-      document.getElementById("refuel-qty-label").textContent = isElecType ? "Quantité (kWh)" : "Quantité (L)";
-      document.getElementById("refuel-cost-label").textContent = `Montant total (${currency})`;
     }
+  });
+}
 
-    document.getElementById("refuel-type").addEventListener("change", () => {
-      syncRefuelFormUnits(getActiveVehicle());
-    });
+function openFuelModal(index = -1) {
+  const v = getActiveVehicle();
+  if (!v) return;
+  const elecDefault = isElectricVehicle(v);
+  document.getElementById("fuelEditIndex").value = index;
+  if (index >= 0 && v.fuelLogs[index]) {
+    const item = v.fuelLogs[index];
+    document.getElementById("fuelModalTitle").textContent = "✏️ Modifier le plein";
+    document.getElementById("fDate").value = item.date;
+    document.getElementById("fTime").value = item.time || "";
+    document.getElementById("fOdo").value = item.odometer;
+    document.getElementById("fCost").value = item.cost;
+    document.getElementById("fPricePerLiter").value = item.pricePerLiter;
+    const ftLower = (item.fuelType || "").toLowerCase();
+    if (ftLower.includes("élec") || ftLower.includes("elec") || ftLower.includes("kwh") || (elecDefault && !ftLower.includes("essence") && !ftLower.includes("sp95") && !ftLower.includes("sp98") && !ftLower.includes("diesel"))) {
+      document.getElementById("fEnergyElec").checked = true;
+    } else {
+      document.getElementById("fEnergyEssence").checked = true;
+    }
+  } else {
+    document.getElementById("fuelModalTitle").textContent = "⛽ Ajouter un plein";
+    document.getElementById("fDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("fTime").value = new Date().toTimeString().slice(0,5);
+    const m = computeVehicleMetrics(v);
+    document.getElementById("fOdo").value = m.currentOdometer + 450;
+    document.getElementById("fCost").value = "";
+    document.getElementById("fPricePerLiter").value = elecDefault ? "0.250" : "1.850";
+    document.getElementById("fEnergyElec").checked = elecDefault;
+    document.getElementById("fEnergyEssence").checked = !elecDefault;
+  }
+  updateFuelLiveCalc();
+  document.getElementById("fuelModal").classList.remove("hidden");
+}
 
-    // Ouvrir modale plein / charge : par défaut "Électrique" si la voiture est électrique
-    document.getElementById("btn-add-refuel").addEventListener("click", () => {
-      const v = getActiveVehicle();
-      if (!v) return;
-      document.getElementById("refuel-date").value = new Date().toISOString().slice(0, 10);
-      document.getElementById("refuel-type").value = isElectricVehicle(v) ? "Électrique" : "Essence";
-      document.getElementById("refuel-km").value = v.odometer || "";
-      document.getElementById("refuel-qty").value = "";
-      document.getElementById("refuel-cost").value = "";
-      syncRefuelFormUnits(v);
-      openModal("modal-refuel");
-    });
+function getSelectedFuelEnergyType() {
+  const checked = document.querySelector('input[name="fEnergyType"]:checked');
+  return checked ? checked.value : (isElectricVehicle(getActiveVehicle()) ? "Électricité" : "Essence");
+}
 
-    document.getElementById("form-refuel").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const v = getActiveVehicle();
-      if (!v) return;
+function updateFuelLiveCalc() {
+  const v = getActiveVehicle();
+  const sym = getCurrencySymbol(v);
+  const energyType = getSelectedFuelEnergyType();
+  const unit = getEnergyUnit(v, energyType);
+  const consoUnit = getConsumptionUnit(v, energyType);
+  document.getElementById("fUnitPriceLabel").textContent = `Prix au ${unit} (${sym}/${unit})`;
+  document.getElementById("fQtyLabel").textContent = `${unit} calculés (automatique)`;
 
-      const km = Number(document.getElementById("refuel-km").value);
-      const qty = Number(document.getElementById("refuel-qty").value);
-      const cost = Number(document.getElementById("refuel-cost").value);
-      const date = document.getElementById("refuel-date").value;
-      const type = document.getElementById("refuel-type").value;
+  const cost = parseFloat(document.getElementById("fCost").value) || 0;
+  const ppl = parseFloat(document.getElementById("fPricePerLiter").value) || 0;
+  const odo = parseInt(document.getElementById("fOdo").value, 10) || 0;
+  const liters = (cost > 0 && ppl > 0) ? (cost / ppl) : 0;
+  document.getElementById("fLitersPreview").value = liters > 0 ? `${fmtNum(liters, 3)} ${unit}` : `0,000 ${unit}`;
 
-      v.refuels = v.refuels || [];
-      v.refuels.push({ id: "r_" + Date.now(), date, type, km, qty, cost });
-      if (km > (v.odometer || 0)) {
-        v.odometer = km;
+  const banner = document.getElementById("fLiveCalcBanner");
+  if (v && liters > 0) {
+    const idx = parseInt(document.getElementById("fuelEditIndex").value, 10);
+    const otherLogs = v.fuelLogs.filter((_, i) => i !== idx && _.odometer < odo).sort((a, b) => b.odometer - a.odometer);
+    const prevOdo = otherLogs.length > 0 ? otherLogs[0].odometer : v.initialOdometer;
+    const dist = odo - prevOdo;
+    if (dist > 0) {
+      const conso = (liters / dist) * 100;
+      banner.innerHTML = `Quantité calculée : <strong>${fmtNum(liters, 3)} ${unit}</strong> • Distance estimée : <strong>+${fmtNum(dist, 0)} km</strong> • Conso estimée : <strong>${fmtNum(conso, 2)} ${consoUnit} km</strong>`;
+      return;
+    }
+  }
+  banner.textContent = `Saisissez le coût total et le prix au ${unit} : la quantité et la consommation (${consoUnit} km) s'affichent automatiquement.`;
+}
+
+["fCost", "fPricePerLiter", "fOdo"].forEach(id => {
+  document.getElementById(id)?.addEventListener("input", updateFuelLiveCalc);
+});
+
+document.getElementById("fuelForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = getActiveVehicle();
+  const idx = parseInt(document.getElementById("fuelEditIndex").value, 10);
+  const date = document.getElementById("fDate").value;
+  const odometer = parseInt(document.getElementById("fOdo").value, 10);
+  const cost = parseFloat(document.getElementById("fCost").value);
+  const pricePerLiter = parseFloat(document.getElementById("fPricePerLiter").value);
+  const liters = pricePerLiter > 0 ? Number((cost / pricePerLiter).toFixed(3)) : 0;
+  const existingType = getSelectedFuelEnergyType();
+  const time = document.getElementById("fTime").value || "00:00";
+  const entry = { date, time, odometer, cost, liters, pricePerLiter, distance: 0, fuelType: existingType };
+  if (idx >= 0) {
+    v.fuelLogs[idx] = entry;
+  } else {
+    v.fuelLogs.push(entry);
+  }
+  saveDB(true);
+  closeModal("fuelModal");
+  refreshAllViews();
+  showToast(t("fuelSaved"), "success");
+});
+
+async function deleteFuel(idx) {
+  const ok = await showConfirmDialog(t("confirmDelFuel"));
+  if (!ok) return;
+  const v = getActiveVehicle();
+  v.fuelLogs.splice(idx, 1);
+  saveDB(true);
+  refreshAllViews();
+  showToast(t("fuelDeleted"), "info");
+}
+
+function categorizeExpense(info = "") {
+  const txt = info.toLowerCase();
+  if (txt.includes("entretien") || txt.includes("vidange") || txt.includes("batterie") || txt.includes("contrôle technique") || txt.includes("midas") || txt.includes("toyota")) return "Entretien";
+  if (txt.includes("assurance")) return "Assurance";
+  if (txt.includes("péage") || txt.includes("ulys") || txt.includes("vignette")) return "Péage";
+  if (txt.includes("parking") || txt.includes("easypark")) return "Parking";
+  if (txt.includes("lavage") || txt.includes("polish") || txt.includes("nettoyage")) return "Lavage";
+  if (txt.includes("pneu") || txt.includes("crevaison") || txt.includes("chaine")) return "Pneus";
+  if (txt.includes("accessoire") || txt.includes("support") || txt.includes("chargeur") || txt.includes("carplay") || txt.includes("usb")) return "Accessoires";
+  if (txt.includes("opteven")) return "Garantie Mécanique";
+  if (txt.includes("crédit") || txt.includes("credit")) return "Crédit";
+  return "Divers";
+}
+
+function renderFuelDetailsTab() {
+  const v = getActiveVehicle();
+  if (!v) return;
+  const m = computeVehicleMetrics(v);
+  const sym = getCurrencySymbol(v);
+  const unit = getEnergyUnit(v);
+  const consoUnit = getConsumptionUnit(v);
+
+  const typeSelect = document.getElementById("fuelDetailTypeFilter");
+  const currentTypeVal = typeSelect.value;
+  const types = [...new Set(m.enrichedFuel.map(x => x.fuelType).filter(Boolean))];
+  typeSelect.innerHTML = `<option value="ALL">Tous carburants</option>` + types.map(t => `<option value="${t}" ${t === currentTypeVal ? "selected" : ""}>${t}</option>`).join("");
+
+  const avgPriceLiter = m.totalLiters > 0 ? m.totalFuelCost / m.totalLiters : 0;
+  const avgCost100 = m.avgConso100 * avgPriceLiter;
+
+  const pricedLogs = m.enrichedFuel.filter(x => x.pricePerLiter > 0);
+  let trendPrice3M = 0;
+  let trendConso3M = 0;
+  if (pricedLogs.length > 0) {
+    const latestDate = new Date(pricedLogs[pricedLogs.length - 1].date);
+    const threeMonthsAgo = new Date(latestDate);
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const recentLogs = pricedLogs.filter(x => new Date(x.date) >= threeMonthsAgo);
+    if (recentLogs.length > 0) {
+      trendPrice3M = recentLogs.reduce((sum, x) => sum + x.pricePerLiter, 0) / recentLogs.length;
+      const recentConso = recentLogs.filter(x => x.conso100 !== null && x.conso100 > 0);
+      if (recentConso.length > 0) trendConso3M = recentConso.reduce((sum, x) => sum + x.conso100, 0) / recentConso.length;
+    }
+  }
+  const trendCost100 = trendConso3M * trendPrice3M;
+
+  const seasons = [
+    { name: "Hiver (Déc)", emoji: "❄️", months: [12, 1, 2] },
+    { name: "Printemps (Mar)", emoji: "🌸", months: [3, 4, 5] },
+    { name: "Eté (Jun)", emoji: "☀️", months: [6, 7, 8] },
+    { name: "Automne (Sep)", emoji: "🍂", months: [9, 10, 11] }
+  ];
+  const seasonsLinesHtml = seasons.map(se => {
+    const logs = m.enrichedFuel.filter(x => x.conso100 !== null && x.conso100 > 0 && se.months.includes(new Date(x.date + "T12:00:00").getMonth() + 1));
+    const avg = logs.length ? logs.reduce((a, x) => a + x.conso100, 0) / logs.length : null;
+    const valText = avg === null ? "—" : `${fmtNum(avg, 2)} ${consoUnit} (${logs.length})`;
+    return `<div class="text-[11px] text-slate-600 flex items-center justify-between gap-1 whitespace-nowrap"><span class="inline-flex items-center gap-1"><span class="w-4 text-center">${se.emoji}</span><span>${se.name}</span></span><span class="text-slate-800 tabular-nums">${valText}</span></div>`;
+  }).join("");
+
+  document.getElementById("fuelDetailsKpis").innerHTML = `
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Conso Moyenne</div>
+      <div class="text-2xl font-bold text-blue-600">${fmtNum(m.avgConso100, 2)} ${consoUnit}</div>
+      <div class="text-xs text-slate-500 mt-1">Sur ${m.enrichedFuel.filter(x => x.conso100 !== null).length} pleins</div>
+      <div class="mt-2 pt-2 border-t border-slate-100 space-y-1">
+        ${seasonsLinesHtml}
+      </div>
+      <div class="text-xs text-slate-600 mt-2 pt-1.5 border-t border-slate-100">3 derniers mois : <strong class="text-amber-600">${fmtNum(trendConso3M, 2)} ${consoUnit} km</strong></div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût Moyen / ${unit}</div>
+      <div class="text-2xl font-bold text-slate-900">${fmtNum(avgPriceLiter, 2)} ${sym}/${unit}</div>
+      <div class="text-xs text-slate-500 mt-1.5">Min : ${fmtNum(m.minPriceLiter, 2)} ${sym} • Max : ${fmtNum(m.maxPriceLiter, 2)} ${sym}</div>
+      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">
+        3 derniers mois : <strong class="text-amber-600">${fmtEur(trendPrice3M, 2, v)}/${unit}</strong>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût Moyen aux 100 km</div>
+      <div class="text-2xl font-bold text-slate-900">${fmtEur(avgCost100, 2, v)} / 100km</div>
+      <div class="text-xs text-slate-500 mt-1.5">Soit ${fmtEur(m.fuelCostPerKm, 2, v)} / km réel</div>
+      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">3 derniers mois : <strong class="text-amber-600">${fmtEur(trendCost100, 2, v)} / 100 km</strong></div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Volume & Budget Total</div>
+      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span class="text-2xl font-bold text-blue-600">${fmtNum(m.totalLiters, 2)} ${unit}</span>
+        <span class="text-slate-300 font-bold">•</span>
+        <span class="text-2xl font-bold text-slate-900">${fmtEur(m.totalFuelCost, 2, v)}</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-1.5">${m.enrichedFuel.filter(x => x.cost > 0).length} pleins enregistrés</div>
+      <div class="text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-slate-100">${fmtEur(m.totalFuelCost / Math.max(1, m.daysOwned), 2, v)} / jour en moyenne</div>
+    </div>
+  `;
+
+  const period = document.getElementById("fuelDetailPeriod").value;
+  const typeFilter = document.getElementById("fuelDetailTypeFilter").value;
+  let series = m.enrichedFuel.filter(x => (x.conso100 !== null || x.pricePerLiter > 0) && x.date !== "2024-02-24");
+  if (typeFilter !== "ALL") {
+    series = series.filter(x => x.fuelType === typeFilter);
+  }
+  if (["2024", "2025", "2026"].includes(period)) {
+    series = series.filter(x => x.date.startsWith(period + "-"));
+  } else if (["10", "20", "30"].includes(period)) {
+    series = series.slice(-parseInt(period, 10));
+  }
+
+  const ctxCombo = document.getElementById("fuelDetailsComboChart").getContext("2d");
+  if (charts.fuelCombo) charts.fuelCombo.destroy();
+  charts.fuelCombo = new Chart(ctxCombo, {
+    type: "line",
+    data: {
+      labels: series.map(x => x.date),
+      datasets: [
+        {
+          label: `Consommation (${consoUnit} km)`,
+          data: series.map(x => x.conso100 !== null ? Number(x.conso100.toFixed(2)) : null),
+          borderColor: "#2563eb",
+          backgroundColor: "rgba(37, 99, 235, 0.12)",
+          yAxisID: "y",
+          tension: 0.3,
+          pointRadius: 3
+        },
+        {
+          label: `Prix / ${unit} (${sym} / ${unit})`,
+          data: series.map(x => x.pricePerLiter > 0 ? Number(x.pricePerLiter.toFixed(3)) : null),
+          borderColor: "#d97706",
+          backgroundColor: "rgba(217, 119, 6, 0.1)",
+          yAxisID: "y1",
+          tension: 0.25,
+          pointRadius: 2.5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        y: {
+          type: "linear",
+          position: "left",
+          title: { display: true, text: `Consommation (${consoUnit} km)` }
+        },
+        y1: {
+          type: "linear",
+          position: "right",
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: `Prix/${unit} (${sym}/${unit})` }
+        },
+        x: { ticks: { maxTicksLimit: 10 } }
       }
+    }
+  });
 
-      saveState();
-      render();
-      closeModal("modal-refuel");
+  renderFuelDetailsTable();
+}
+
+function renderFuelDetailsTable() {
+  const v = getActiveVehicle();
+  if (!v) return;
+  const m = computeVehicleMetrics(v);
+  const sym = getCurrencySymbol(v);
+  const unit = getEnergyUnit(v);
+  const q = (document.getElementById("fuelDetailSearch").value || "").toLowerCase();
+  const sortMode = document.getElementById("fuelDetailSort").value;
+
+  let list = m.enrichedFuel.filter(r =>
+    r.date.toLowerCase().includes(q) ||
+    (r.note || "").toLowerCase().includes(q) ||
+    String(r.odometer).includes(q)
+  );
+
+  list.sort((a, b) => {
+    if (sortMode === "date_asc") return a.date.localeCompare(b.date) || a.odometer - b.odometer;
+    if (sortMode === "date_desc") return b.date.localeCompare(a.date) || b.odometer - a.odometer;
+    if (sortMode === "odo_desc") return b.odometer - a.odometer;
+    if (sortMode === "cost_desc") return b.cost - a.cost;
+    if (sortMode === "conso_asc") return (a.conso100 ?? 999) - (b.conso100 ?? 999);
+    if (sortMode === "conso_desc") return (b.conso100 ?? -1) - (a.conso100 ?? -1);
+    return 0;
+  });
+
+  document.getElementById("fuelDetailsTableBody").innerHTML = list.map(r => {
+    const origIdx = v.fuelLogs.findIndex(x => x.date === r.date && x.odometer === r.odometer && x.cost === r.cost);
+    const pricePerKm = (r.dist > 0 && r.cost > 0) ? (r.cost / r.dist) : null;
+    const rowUnit = getEnergyUnit(v, r.fuelType);
+    return `
+      <tr class="hover:bg-slate-50 whitespace-nowrap">
+        <td class="py-2.5 px-3 font-semibold">${r.date}</td>
+        <td class="py-2.5 px-3">${r.days !== null ? r.days + " j" : "—"}</td>
+        <td class="py-2.5 px-3">${fmtNum(r.odometer, 0)} km</td>
+        <td class="py-2.5 px-3">${r.dist > 0 ? "+" + fmtNum(r.dist, 0) + " km" : "Initial"}</td>
+        <td class="py-2.5 px-3">${r.liters > 0 ? fmtNum(r.liters, 2) + " " + rowUnit : "—"}</td>
+        <td class="py-2.5 px-3">${r.pricePerLiter > 0 ? fmtNum(r.pricePerLiter, 3) + " " + sym : "—"}</td>
+        <td class="py-2.5 px-3 font-semibold">${r.cost > 0 ? fmtEur(r.cost, 2, v) : "—"}</td>
+        <td class="py-2.5 px-3 font-bold text-blue-600">${r.conso100 !== null ? fmtNum(r.conso100, 2) + " " + rowUnit : "—"}</td>
+        <td class="py-2.5 px-3 font-semibold">${pricePerKm !== null ? fmtEur(pricePerKm, 2, v) : "—"}</td>
+        <td class="py-2.5 px-3">${r.cost100 !== null ? fmtEur(r.cost100, 2, v) : "—"}</td>
+        <td class="py-2.5 px-3">
+          <button type="button" onclick="openFuelModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
+          <button type="button" onclick="deleteFuel(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderExpenseTable() {
+  const v = getActiveVehicle();
+  if (!v) return;
+  const m = computeVehicleMetrics(v);
+  const q = (document.getElementById("expenseSearch").value || "").toLowerCase();
+
+  const rows = [...m.enrichedExp].reverse().filter(r => {
+    const cat = r.category || categorizeExpense(r.info);
+    return r.date.includes(q) || cat.toLowerCase().includes(q) || (r.info || "").toLowerCase().includes(q) || String(r.cost).includes(q);
+  });
+
+  document.getElementById("expenseTableBody").innerHTML = rows.map(r => {
+    const origIdx = v.expenses.findIndex(x => x.date === r.date && x.info === r.info && x.cost === r.cost);
+    const cat = r.category || categorizeExpense(r.info);
+    return `
+      <tr class="hover:bg-slate-50">
+        <td class="py-2.5 px-3 font-semibold whitespace-nowrap">${r.date}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">${cat}</span></td>
+        <td class="py-2.5 px-3 whitespace-nowrap">${r.odometer > 0 ? fmtNum(r.odometer, 0) + " km" : "—"}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap">${r.distSincePurchase > 0 ? "+" + fmtNum(r.distSincePurchase, 0) + " km" : "0 km"}</td>
+        <td class="py-2.5 px-3 font-semibold whitespace-nowrap">${fmtEur(r.cost, 2, v)}</td>
+        <td class="py-2.5 px-3 min-w-[200px]">${r.info}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap">
+          <button type="button" onclick="openExpenseModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
+          <button type="button" onclick="deleteExpense(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function openExpenseModal(index = -1) {
+  const v = getActiveVehicle();
+  if (!v) return;
+  document.getElementById("expenseEditIndex").value = index;
+  if (index >= 0 && v.expenses[index]) {
+    const item = v.expenses[index];
+    document.getElementById("expenseModalTitle").textContent = "✏️ Modifier la dépense";
+    document.getElementById("eDate").value = item.date;
+    document.getElementById("eTime").value = item.time || "";
+    document.getElementById("eOdo").value = item.odometer;
+    document.getElementById("eCost").value = item.cost;
+    document.getElementById("eCategory").value = item.category || categorizeExpense(item.info);
+    document.getElementById("eInfo").value = item.info;
+  } else {
+    document.getElementById("expenseModalTitle").textContent = "🧾 Ajouter une dépense";
+    document.getElementById("eDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("eTime").value = new Date().toTimeString().slice(0,5);
+    const m = computeVehicleMetrics(v);
+    document.getElementById("eOdo").value = m.currentOdometer;
+    document.getElementById("eCost").value = "";
+    document.getElementById("eCategory").value = "Entretien";
+    document.getElementById("eInfo").value = "";
+  }
+  document.getElementById("expenseModal").classList.remove("hidden");
+}
+
+document.getElementById("expenseForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = getActiveVehicle();
+  const idx = parseInt(document.getElementById("expenseEditIndex").value, 10);
+  const info = document.getElementById("eInfo").value.trim();
+  const entry = {
+    date: document.getElementById("eDate").value,
+    time: document.getElementById("eTime").value || "00:00",
+    odometer: parseInt(document.getElementById("eOdo").value, 10) || 0,
+    cost: parseFloat(document.getElementById("eCost").value),
+    category: document.getElementById("eCategory").value,
+    info
+  };
+  if (idx >= 0) {
+    v.expenses[idx] = entry;
+  } else {
+    v.expenses.push(entry);
+  }
+  saveDB(true);
+  closeModal("expenseModal");
+  refreshAllViews();
+  showToast(t("expenseSaved"), "success");
+});
+
+async function deleteExpense(idx) {
+  const ok = await showConfirmDialog(t("confirmDelExpense"));
+  if (!ok) return;
+  const v = getActiveVehicle();
+  v.expenses.splice(idx, 1);
+  saveDB(true);
+  refreshAllViews();
+  showToast(t("expenseDeleted"), "info");
+}
+
+function renderExpenseDetailsTab() {
+  const v = getActiveVehicle();
+  if (!v) return;
+  const m = computeVehicleMetrics(v);
+  const sym = getCurrencySymbol(v);
+  const exps = m.enrichedExp.map(e => ({ ...e, category: e.category || categorizeExpense(e.info) }));
+
+  const count = exps.length;
+  const catTotals = {};
+  exps.forEach(e => {
+    catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.cost || 0);
+  });
+  const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+
+  document.getElementById("expenseDetailsKpis").innerHTML = `
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total des Dépenses</div>
+      <div class="text-2xl font-bold text-slate-900">${fmtEur(m.totalExpenses, 2, v)}</div>
+      <div class="text-xs text-slate-500 mt-1.5">${count} transaction(s) enregistrée(s)</div>
+    </div>
+  `;
+
+  const ctxCat = document.getElementById("expenseCategoryChart").getContext("2d");
+  if (charts.expCat) charts.expCat.destroy();
+  charts.expCat = new Chart(ctxCat, {
+    type: "bar",
+    data: {
+      labels: sortedCats.map(c => c[0]),
+      datasets: [{
+        label: `Montant (${sym})`,
+        data: sortedCats.map(c => Number(c[1].toFixed(2))),
+        backgroundColor: ["#bfdbfe", "#bbf7d0", "#fde68a", "#ddd6fe", "#fbcfe8", "#a5f3fc", "#cbd5e1", "#fecaca", "#fed7aa", "#d9f99d"],
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label} : ${fmtEur(ctx.parsed.y, 2, v)}`
+          }
+        }
+      },
+      scales: { y: { beginAtZero: true, title: { display: true, text: `Montant (${sym})` } } }
+    }
+  });
+
+  const yearTotals = {};
+  exps.forEach(e => {
+    const yr = (e.date || "").slice(0, 4);
+    if (yr) yearTotals[yr] = (yearTotals[yr] || 0) + Number(e.cost || 0);
+  });
+  const sortedYearsExp = Object.keys(yearTotals).sort();
+  const ctxMonth = document.getElementById("expenseMonthlyChart").getContext("2d");
+  if (charts.expMonth) charts.expMonth.destroy();
+  charts.expMonth = new Chart(ctxMonth, {
+    type: "line",
+    data: {
+      labels: sortedYearsExp,
+      datasets: [{
+        label: `Dépenses annuelles (${sym})`,
+        data: sortedYearsExp.map(yr => Number(yearTotals[yr].toFixed(2))),
+        borderColor: "#2563eb",
+        backgroundColor: "rgba(37, 99, 235, 0.12)",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: `Montant (${sym})` } },
+        x: { ticks: { maxTicksLimit: 10 } }
+      }
+    }
+  });
+}
+
+function renderQuickAccess() {
+  const v = getActiveVehicle();
+  const updated = document.getElementById("quickUpdated");
+  if (updated) updated.textContent = "Dernière mise à jour effectuée le : " + (db.lastUpdated ? new Date(db.lastUpdated).toLocaleString(getLangMeta(getActiveLanguage()).locale) : "—");
+  const infoCard = document.getElementById("quickVehicleCard");
+  const oilCard = document.getElementById("quickOilCard");
+  const inspectionCard = document.getElementById("quickInspectionCard");
+  if (!v) {
+    if (infoCard) infoCard.innerHTML = t("noVehicle");
+    if (oilCard) oilCard.innerHTML = "";
+    if (inspectionCard) inspectionCard.innerHTML = "";
+    return;
+  }
+  const m = computeVehicleMetrics(v);
+  const consoUnit = getConsumptionUnit(v);
+  if (infoCard) infoCard.innerHTML = `<h3 class="text-base font-bold mb-3">🚘 ${v.name} — ${v.brand} ${v.model} (${getVehicleCurrencyCode(v)})</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+    <div class="rounded-lg border border-sky-200 bg-sky-50 p-2">⛽ Carburant / Énergie : <strong>${v.fuelType || "—"}</strong></div>
+    <div class="rounded-lg border border-violet-200 bg-violet-50 p-2">⚡ Puissance : <strong>${v.power || "—"}</strong></div>
+    <div class="rounded-lg border border-blue-200 bg-blue-50 p-2">🛣️ Compteur : <strong>${fmtNum(m.currentOdometer,0)} km</strong> (+${fmtNum(m.totalKmDriven,0)} km)</div>
+    <div class="rounded-lg border border-amber-200 bg-amber-50 p-2">⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2">💎 Valeur estimée : <strong>${fmtEur(m.currentValue, 2, v)}</strong></div>
+    <div class="rounded-lg border border-cyan-200 bg-cyan-50 p-2">⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} ${consoUnit} • ${fmtEur(m.fuelCostPerKm,2,v)} / km</strong></div>
+    <div class="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerMonth,2,v)} / mois • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div></div>`;
+
+  if (oilCard) {
+    const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
+    oilCard.innerHTML = `<div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-800">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date indisponible"}</span></div>
+    <p class="text-sm text-amber-900 mt-2">Dernière à ${fmtNum(m.lastOilChangeOdo,0)} km • Seuil ${fmtNum(m.targetOilChangeOdo,0)} km (reste ${fmtNum(remaining,0)} km à ~${fmtNum(m.kmPerWeek,0)} km/sem) ou 1 an (${m.nextOilChangeReason === "échéance 1 an" ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : new Date(new Date(m.lastOilChangeDateStr+"T12:00:00").setFullYear(new Date(m.lastOilChangeDateStr+"T12:00:00").getFullYear()+1)).toLocaleDateString("fr-FR")})</p>`;
+  }
+
+  if (inspectionCard) {
+    const rawInsp = v.nextInspectionDate || "";
+    const inspDt = rawInsp ? new Date(rawInsp + "T12:00:00") : null;
+    const isValidInsp = inspDt && !isNaN(inspDt.getTime());
+    if (isValidInsp) {
+      const todayMid = new Date();
+      todayMid.setHours(12, 0, 0, 0);
+      const diffDays = Math.ceil((inspDt - todayMid) / 86400000);
+      const statusText = diffDays < 0
+        ? `Échéance dépassée de ${Math.abs(diffDays)} jour(s)`
+        : diffDays === 0
+          ? "Prévu aujourd'hui"
+          : `Dans ${diffDays} jour(s)`;
+      inspectionCard.innerHTML = `<div class="font-bold">🛡️ Prochain contrôle technique : <span class="text-sky-900">${inspDt.toLocaleDateString("fr-FR")}</span></div>
+      <p class="text-sm text-sky-950 mt-2">${statusText} • Véhicule : <strong>${v.name}</strong></p>`;
+    } else {
+      inspectionCard.innerHTML = `<div class="font-bold">🛡️ Prochain contrôle technique : <span class="text-sky-900">Non renseignée</span></div>
+      <p class="text-sm text-sky-900 mt-2">Ajoutez la date du prochain contrôle technique dans la fiche du véhicule (onglet <strong>Véhicules</strong>).</p>`;
+    }
+  }
+}
+
+function renderVehiclesTab() {
+  const grid = document.getElementById("vehiclesListGrid");
+  grid.innerHTML = db.vehicles.map(v => {
+    const m = computeVehicleMetrics(v);
+    const consoUnit = getConsumptionUnit(v);
+    const vCurr = getVehicleCurrencyCode(v);
+    const isCurrent = v.id === activeVehicleId;
+    const inspStr = v.nextInspectionDate ? new Date(v.nextInspectionDate + "T12:00:00").toLocaleDateString("fr-FR") : "Non renseignée";
+    return `
+      <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <h4 class="text-base font-bold text-slate-900">🚘 ${v.name} (${v.brand} ${v.model}) • <span class="text-blue-700">${vCurr}</span></h4>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">
+          Version : <strong>${v.version || "Technoline"}</strong> • ${v.registration ? `Immatriculation : <strong>${v.registration}</strong> • ` : ""}Année : <strong>${v.year}</strong> • Puissance : <strong>${v.power}</strong> • Carburant : <strong>${v.fuelType}</strong> • Devise : <strong>${vCurr}</strong> • Prochain CT : <strong>${inspStr}</strong>
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+          <div class="rounded-lg border border-blue-200 bg-blue-50 p-2">Prix d'achat : <strong>${fmtEur(v.purchasePrice, 2, v)}</strong></div>
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2">Valeur actuelle : <strong class="text-emerald-600">${fmtEur(m.currentValue, 2, v)}</strong></div>
+          <div class="rounded-lg border border-sky-200 bg-sky-50 p-2">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
+          <div class="rounded-lg border border-violet-200 bg-violet-50 p-2">Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} ${consoUnit}</strong></div>
+          <div class="col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 p-2">Coût énergie / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2, v)} / km</strong></div>
+          <div class="col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerMonth,2,v)} / mois • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button type="button" onclick="selectVehicleFromCard('${v.id}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer">Afficher le suivi</button>
+          <button type="button" onclick="openVehicleModal('${v.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer">✏️ Modifier</button>
+          <button type="button" onclick="deleteVehicle('${v.id}')" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold cursor-pointer">${t("deleteBtn")}</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectVehicleFromCard(id) {
+  activeVehicleId = id;
+  if (currentUser?.id && activeVehicleId) {
+    setPreferredVehicleId(currentUser.id, activeVehicleId);
+    saveDB(true);
+  }
+  populateVehicleSelector();
+  refreshAllViews();
+  switchTab("quick");
+}
+
+function openVehicleModal(vehicleId = "") {
+  document.getElementById("vEditId").value = vehicleId;
+  if (vehicleId) {
+    const v = db.vehicles.find(x => x.id === vehicleId);
+    document.getElementById("vehicleModalTitle").textContent = "✏️ Modifier le véhicule";
+    document.getElementById("vName").value = v.name;
+    populateVehicleCurrencySelect(v.currency || db.defaultCurrency || "EUR");
+    document.getElementById("vRegistration").value = v.registration || "";
+    document.getElementById("vBrand").value = v.brand;
+    document.getElementById("vModel").value = v.model;
+    document.getElementById("vVersion").value = v.version || "";
+    document.getElementById("vYear").value = v.year;
+    document.getElementById("vPower").value = v.power;
+    document.getElementById("vFuelType").value = v.fuelType;
+    document.getElementById("vPurchasePrice").value = v.purchasePrice;
+    document.getElementById("vPurchaseDate").value = v.purchaseDate;
+    document.getElementById("vInitialOdo").value = v.initialOdometer;
+    document.getElementById("vNextInspectionDate").value = v.nextInspectionDate || "";
+  } else {
+    document.getElementById("vehicleModalTitle").textContent = "🚘 Ajouter un véhicule";
+    document.getElementById("vName").value = "";
+    populateVehicleCurrencySelect(db.defaultCurrency || "EUR");
+    document.getElementById("vRegistration").value = "";
+    document.getElementById("vBrand").value = "";
+    document.getElementById("vModel").value = "";
+    document.getElementById("vVersion").value = "Technoline";
+    document.getElementById("vYear").value = new Date().getFullYear();
+    document.getElementById("vPower").value = "5 CV";
+    document.getElementById("vFuelType").value = "Essence";
+    document.getElementById("vPurchasePrice").value = "";
+    document.getElementById("vPurchaseDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("vInitialOdo").value = "0";
+    document.getElementById("vNextInspectionDate").value = "";
+  }
+  applyCurrencyAndUnitLabelsToDOM(vehicleId ? db.vehicles.find(x => x.id === vehicleId) : { currency: document.getElementById("vCurrency").value });
+  document.getElementById("vehicleModal").classList.remove("hidden");
+}
+
+document.getElementById("vCurrency")?.addEventListener("change", (e) => {
+  applyCurrencyAndUnitLabelsToDOM({ currency: e.target.value, fuelType: document.getElementById("vFuelType")?.value || "" });
+});
+
+document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const editId = document.getElementById("vEditId").value;
+  const chosenCurrency = (document.getElementById("vCurrency")?.value || "EUR").toUpperCase();
+  const payload = {
+    name: document.getElementById("vName").value.trim(),
+    currency: chosenCurrency,
+    ownerId: currentUser ? currentUser.id : null,
+    registration: document.getElementById("vRegistration").value.trim().toUpperCase(),
+    brand: document.getElementById("vBrand").value.trim(),
+    model: document.getElementById("vModel").value.trim(),
+    version: document.getElementById("vVersion").value.trim(),
+    year: parseInt(document.getElementById("vYear").value, 10),
+    power: document.getElementById("vPower").value.trim(),
+    fuelType: document.getElementById("vFuelType").value.trim(),
+    purchasePrice: parseFloat(document.getElementById("vPurchasePrice").value),
+    purchaseDate: document.getElementById("vPurchaseDate").value,
+    initialOdometer: parseInt(document.getElementById("vInitialOdo").value, 10),
+    nextInspectionDate: document.getElementById("vNextInspectionDate").value || ""
+  };
+
+  if (editId) {
+    const v = db.vehicles.find(x => x.id === editId);
+    Object.assign(v, payload, { isDemo: false, isUserCreated: true });
+    if (currentUser?.id) {
+      setPreferredVehicleId(currentUser.id, v.id);
+    }
+  } else {
+    const newId = "v_" + Date.now();
+    db.vehicles.push({
+      id: newId,
+      ...payload,
+      isDemo: false,
+      isUserCreated: true,
+      createdAt: Date.now(),
+      depreciationFixedPerDay: 2.97126,
+      depreciationPerKmDay: 0.090022,
+      fuelLogs: [{
+        date: payload.purchaseDate,
+        odometer: payload.initialOdometer,
+        cost: 0,
+        liters: 0,
+        pricePerLiter: 0,
+        distance: 0,
+        fuelType: payload.fuelType
+      }],
+      expenses: []
     });
+    activeVehicleId = newId;
+    if (currentUser?.id) {
+      setPreferredVehicleId(currentUser.id, newId);
+    }
+  }
+  saveDB(true);
+  closeModal("vehicleModal");
+  populateVehicleSelector();
+  refreshAllViews();
+  showToast(t("vehicleSaved"), "success");
+});
 
-    // Modale Profil + Déconnexion
-    document.getElementById("btn-open-profile").addEventListener("click", () => {
-      openModal("modal-profile");
-    });
+async function deleteVehicle(id) {
+  const ok = await showConfirmDialog(t("confirmDelVehicle"));
+  if (!ok) return;
+  db.vehicles = db.vehicles.filter(v => v.id !== id);
+  if (currentUser?.id && getPreferredVehicleId(currentUser.id) === id) {
+    delete db.defaultVehicleByUser[currentUser.id];
+    try { localStorage.removeItem(DEFAULT_VEHICLE_PREFIX + currentUser.id); } catch {}
+  }
+  activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
+  saveDB(true);
+  populateVehicleSelector();
+  refreshAllViews();
+  showToast(t("vehicleDeleted"), "info");
+}
 
-    document.getElementById("btn-logout").addEventListener("click", () => {
-      setSaveStatus("Données sauvegardées");
-      closeModal("modal-profile");
-      alert("Déconnexion effectuée.");
-    });
+function downloadJSONFile(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-    render();
-  </script>
+function exportBackupJSON() {
+  downloadJSONFile(db, "autotrack_data.json");
+  document.getElementById("unsavedBanner").classList.add("hidden");
+  showToast(t("savedOk"), "success");
+}
+
+function renderBenefitsTab() {
+  const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = [];
+  const sym = getCurrencySymbol(v);
+  const list = [...v.benefits].sort((a, b) => a.date.localeCompare(b.date));
+  const yearTotals = {};
+  list.forEach(x => { const y = (x.date || '').slice(0, 4); if (y) yearTotals[y] = (yearTotals[y] || 0) + Number(x.amount || 0); });
+  const pastels = { "2024": "#dcfce7", "2025": "#dbeafe", "2026": "#fef3c7", "2027": "#fce7f3", "2028": "#ede9fe", "2029": "#cffafe" };
+  const color = y => pastels[y] || "#e0f2fe";
+  const benefitTotal = list.reduce((a, x) => a + Number(x.amount || 0), 0);
+  const totalExpenses = (v.expenses || []).reduce((a, x) => a + Number(x.cost || 0), 0);
+  const totalFuel = (v.fuelLogs || []).reduce((a, x) => a + Number(x.cost || 0), 0);
+  const carPrice = Number(v.purchasePrice || 0);
+  const cost = totalExpenses + totalFuel + carPrice;
+  const diff = benefitTotal - cost;
+  const coveragePct = cost > 0 ? Math.min(100, Math.max(0, (benefitTotal / cost) * 100)) : 0;
+
+  const yearly = Object.keys(yearTotals).sort().map(y => `<span class="inline-flex rounded-lg px-2.5 py-1 mb-1" style="background:${color(y)}">${y}: <strong class="ml-1">${fmtEur(yearTotals[y], 2, v)}</strong></span>`).join(' ') || 'Aucun bénéfice enregistré';
+
+  const isPositive = diff >= 0;
+  const balanceCardStyle = isPositive
+    ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 text-emerald-900"
+    : "bg-gradient-to-r from-rose-50 to-amber-50 border-rose-200 text-rose-900";
+  const balanceValueColor = isPositive ? "text-emerald-600" : "text-rose-600";
+
+  document.getElementById('benefitKpis').innerHTML = `
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-slate-900">💰 Total Bénéfice</h3>
+          <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">${list.length} entrée(s)</span>
+        </div>
+        <div class="mt-2 text-xs flex flex-wrap gap-1.5">${yearly}</div>
+      </div>
+      <div class="mt-4 p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Cumul des bénéfices</span>
+        <span class="text-xl font-bold text-emerald-700">${fmtEur(benefitTotal, 2, v)}</span>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 space-y-3.5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">⚖️ Ecart Bénéfice v/s Coût</h3>
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${isPositive ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+          Couverture : ${fmtNum(coveragePct, 1)}%
+        </span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2">
+        <div class="p-2.5 rounded-xl bg-pink-50 border border-pink-100">
+          <div class="text-[11px] font-semibold text-pink-700">🧾 Dépenses</div>
+          <div class="text-xs sm:text-sm font-bold text-pink-950 mt-0.5">${fmtEur(totalExpenses, 2, v)}</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-100">
+          <div class="text-[11px] font-semibold text-amber-700">⛽ Carburant</div>
+          <div class="text-xs sm:text-sm font-bold text-amber-950 mt-0.5">${fmtEur(totalFuel, 2, v)}</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100">
+          <div class="text-[11px] font-semibold text-indigo-700">🚘 Prix achat</div>
+          <div class="text-xs sm:text-sm font-bold text-indigo-950 mt-0.5">${fmtEur(carPrice, 2, v)}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="p-3 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-600">📉 Coût total</span>
+          <strong class="text-sm font-bold text-slate-900">${fmtEur(cost, 2, v)}</strong>
+        </div>
+        <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+          <span class="text-xs font-semibold text-emerald-700">📈 Bénéfices</span>
+          <strong class="text-sm font-bold text-emerald-800">${fmtEur(benefitTotal, 2, v)}</strong>
+        </div>
+      </div>
+
+      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all duration-500 ${isPositive ? 'bg-emerald-500' : 'bg-blue-500'}" style="width: ${coveragePct}%"></div>
+      </div>
+
+      <div class="p-3.5 rounded-xl border ${balanceCardStyle} flex items-center justify-between">
+        <div>
+          <div class="text-[15px] opacity-75"><strong>${isPositive ? 'Seuil de rentabilité dépassé' : 'Reste à amortir'}</strong></div>
+        </div>
+        <div class="text-xl font-extrabold ${balanceValueColor}">${fmtEur(diff, 2, v)}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('benefitTableBody').innerHTML = list.length ? list.map((x) => `<tr><td class="py-3 px-3">${new Date(x.date + 'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="py-3 px-3">${fmtEur(x.amount, 2, v)}</td><td class="py-3 px-3"><button onclick="deleteBenefit(${v.benefits.indexOf(x)})" class="text-red-600 font-semibold cursor-pointer">${t("deleteBtn")}</button></td></tr>`).join('') : `<tr><td colspan="3" class="py-4 text-center text-slate-400">Aucune rentrée d'argent enregistrée.</td></tr>`;
+
+  const dailyTotals = {};
+  list.forEach(x => { const d = x.date; if (d) dailyTotals[d] = (dailyTotals[d] || 0) + Number(x.amount || 0); });
+  const historyDates = Object.keys(dailyTotals).sort();
+  const cumulative = [];
+  let running = 0;
+  historyDates.forEach(d => { running += dailyTotals[d]; cumulative.push(running - cost); });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const firstDate = historyDates.length ? new Date(historyDates[0] + 'T00:00:00') : null;
+  const elapsedDays = firstDate ? Math.max(1, Math.ceil((today - firstDate) / 86400000)) : 0;
+  const dailyRate = elapsedDays > 0 ? benefitTotal / elapsedDays : 0;
+  let forecastDate = null;
+  if (diff < 0 && dailyRate > 0) { forecastDate = new Date(today.getTime() + Math.ceil((cost - benefitTotal) / dailyRate) * 86400000); }
+  const chartLabels = historyDates.map(d => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR'));
+  const gapData = cumulative.slice();
+  const projectionData = historyDates.map(() => null);
+  if (forecastDate) {
+    chartLabels.push(forecastDate.toLocaleDateString('fr-FR'));
+    gapData.push(null);
+    if (projectionData.length) projectionData[projectionData.length - 1] = diff;
+    projectionData.push(0);
+  }
+  const forecastEl = document.getElementById('benefitForecastText');
+  if (forecastEl) { forecastEl.textContent = diff >= 0 ? 'Le seuil de rentabilité est déjà atteint : les bénéfices couvrent le coût total.' : forecastDate ? `À rythme moyen constant (${fmtEur(dailyRate * 30, 2, v)} par mois), équilibre prévisionnel vers le ${forecastDate.toLocaleDateString('fr-FR')}.` : 'Date prévisionnelle indisponible : ajoute des rentrées d’argent pour calculer une tendance.'; }
+  const ctx = document.getElementById('benefitHistoryChart'); if (charts.benefitHistoryChart) charts.benefitHistoryChart.destroy();
+  charts.benefitHistoryChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [
+        { label: `Écart cumulé (Bénéfices − Coût) (${sym})`, data: gapData, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.10)', fill: false, tension: 0.25, pointRadius: 3, spanGaps: false },
+        { label: forecastDate ? 'Projection jusqu’à l’équilibre' : 'Projection', data: projectionData, borderColor: '#f59e0b', borderDash: [6, 5], borderWidth: 2, pointRadius: 3, fill: false, tension: 0 },
+        { label: `Équilibre (0 ${sym})`, data: chartLabels.map(() => 0), borderColor: '#64748b', borderDash: [3, 5], borderWidth: 1.5, pointRadius: 0, fill: false }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, scales: { y: { title: { display: true, text: `Écart (${sym})` } }, x: { ticks: { maxTicksLimit: 8 } } }, plugins: { legend: { display: true, labels: { boxWidth: 20 } } } }
+  });
+}
+
+function openBenefitModal() { const v = getActiveVehicle(); if (!v) return; document.getElementById('bDate').value = new Date().toISOString().slice(0, 10); document.getElementById('bAmount').value = ''; document.getElementById('benefitModal').classList.remove('hidden'); }
+document.getElementById('benefitForm')?.addEventListener('submit', e => { e.preventDefault(); const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = []; v.benefits.push({ date: document.getElementById('bDate').value, amount: parseFloat(document.getElementById('bAmount').value) }); saveDB(true); closeModal('benefitModal'); refreshAllViews(); showToast(t("benefitSaved"), 'success'); });
+async function deleteBenefit(idx) { if (!await showConfirmDialog(t("confirmDelBenefit"))) return; const v = getActiveVehicle(); v.benefits.splice(idx, 1); saveDB(true); refreshAllViews(); showToast(t("benefitDeleted"), 'info'); }
+
+function switchTab(tabName) {
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    const active = b.dataset.tab === tabName;
+    b.classList.toggle("border-blue-600", active);
+    b.classList.toggle("text-blue-600", active);
+    b.classList.toggle("border-transparent", !active);
+    b.classList.toggle("text-slate-500", !active);
+  });
+  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles"].forEach(t => {
+    const el = document.getElementById("tab-" + t);
+    if (el) el.classList.toggle("hidden", t !== tabName);
+  });
+  if (tabName === "dashboard") refreshAllViews();
+  if (tabName === "vehicles") renderVehiclesTab();
+  if (tabName === "quick") renderQuickAccess();
+  if (tabName === "fuel-details") renderFuelDetailsTab();
+  if (tabName === "expenses-details") renderExpenseDetailsTab();
+  if (tabName === "benefits") renderBenefitsTab();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add("hidden");
+}
+
+const AUTOTRACK_SUPABASE_URL = "https://zqirygiwqmtfykianplr.supabase.co";
+const AUTOTRACK_SUPABASE_KEY = "sb_publishable_dsKuoK6SVDXkz4D_FBqNVQ_1dTe2h8d";
+const AUTOTRACK_BUCKET = "autotrack-data";
+var supabaseClient = null, supabaseUser = null, supabaseSaveTimer = null, cloudFilePath = null;
+
+function setSyncStatusBadge(state) {
+  const badge = document.getElementById("oneDriveHeaderStatus");
+  if (!badge) return;
+  badge.dataset.state = state;
+  if (state === "saving") badge.textContent = t("saving");
+  else if (state === "error") badge.textContent = t("saveErr");
+  else badge.textContent = t("savedOk");
+}
+
+function getCloudFileName(email) {
+  const localPart = (email || "autotrack").split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "_");
+  return localPart + ".json";
+}
+function scheduleSupabaseSave() {
+  if (!supabaseClient || !supabaseUser || !cloudFilePath) return;
+  setSyncStatusBadge("saving");
+  clearTimeout(supabaseSaveTimer);
+  supabaseSaveTimer = setTimeout(() => uploadAutoTrackData(), 1200);
+}
+async function uploadAutoTrackData() {
+  if (!supabaseClient || !supabaseUser || !cloudFilePath) return;
+  try {
+    const payload = JSON.stringify(db, null, 2);
+    const { error } = await supabaseClient.storage.from(AUTOTRACK_BUCKET).upload(cloudFilePath, new Blob([payload], {type:"application/json"}), {upsert:true, contentType:"application/json"});
+    if (error) throw error;
+    document.getElementById("unsavedBanner")?.classList.add("hidden");
+    setSyncStatusBadge("ok");
+  } catch (e) {
+    console.error("AutoTrack upload", e);
+    setSyncStatusBadge("error");
+    showToast(t("saveErrToast"), "error");
+  }
+}
+async function autoTrackGoogleLogin() {
+  const status = document.getElementById("supabaseLoginStatus");
+  const button = document.getElementById("supabaseGoogleLogin");
+  if (!supabaseClient) {
+    if (status) status.textContent = t("loginInit");
+    return;
+  }
+  if (button) { button.disabled = true; button.textContent = t("loginRedirect"); }
+  if (status) status.textContent = t("loginOpening");
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href.split("#")[0] } });
+    if (error) throw error;
+    if (data?.url) window.location.assign(data.url);
+  } catch (e) {
+    if (status) status.textContent = (e.message || e);
+    if (button) { button.disabled = false; button.textContent = t("googleLogin"); }
+  }
+}
+async function autoTrackLogout() {
+  const button = document.getElementById("profileLogoutBtn");
+  if (button) { button.disabled = true; button.textContent = t("loggingOut"); }
+  try {
+    if (supabaseSaveTimer) { clearTimeout(supabaseSaveTimer); supabaseSaveTimer = null; }
+    if (supabaseClient && supabaseUser && cloudFilePath) { await uploadAutoTrackData(); }
+    if (supabaseClient) { const { error } = await supabaseClient.auth.signOut(); if (error) throw error; }
+  } catch (e) {
+    if (button) { button.disabled = false; button.textContent = t("logout"); }
+    showToast(t("logoutErr") + (e.message || e), "error");
+    return;
+  }
+  supabaseUser = null; currentUser = null; cloudFilePath = null; activeVehicleId = null;
+  sessionStorage.removeItem(SESSION_KEY);
+  closeModal("profileModal");
+  document.getElementById("appView")?.classList.add("hidden");
+  document.getElementById("authWrapper")?.classList.remove("hidden");
+  applyLanguageToDOM();
+}
+async function handleSupabaseSession(session) {
+  if (!session?.user) {
+    supabaseUser = null; currentUser = null; cloudFilePath = null;
+    document.getElementById("appView")?.classList.add("hidden");
+    document.getElementById("authWrapper")?.classList.remove("hidden");
+    applyLanguageToDOM();
+    return;
+  }
+  supabaseUser = session.user;
+  cloudFilePath = supabaseUser.id + "/" + getCloudFileName(supabaseUser.email);
+  try {
+    const { data, error } = await supabaseClient.storage.from(AUTOTRACK_BUCKET).download(cloudFilePath);
+    if (!error && data) {
+      const remote = JSON.parse(await data.text());
+      if (!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Invalid data.");
+      db = remote;
+      if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    }
+  } catch (e) {
+    console.error("AutoTrack cloud load", e);
+  }
+  const meta = supabaseUser.user_metadata || {};
+  const existingStoredUser = Array.isArray(db.users) ? db.users.find(u => u && u.id === supabaseUser.id) : null;
+  const googleFullName = meta.full_name || meta.name || "";
+  const nameParts = googleFullName.trim().split(/\s+/);
+  const defaultFirstName = meta.given_name || (nameParts.length > 0 ? nameParts[0] : "");
+  const defaultLastName = meta.family_name || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+  const googleAvatar = meta.avatar_url || meta.picture || "";
+
+  currentUser = {
+    id: supabaseUser.id,
+    username: supabaseUser.email || "google",
+    email: supabaseUser.email || existingStoredUser?.email || "",
+    avatarUrl: googleAvatar || existingStoredUser?.avatarUrl || "",
+    firstName: existingStoredUser?.firstName !== undefined ? existingStoredUser.firstName : defaultFirstName,
+    lastName: existingStoredUser?.lastName !== undefined ? existingStoredUser.lastName : defaultLastName,
+    displayName: existingStoredUser?.displayName || googleFullName || supabaseUser.email || "Utilisateur",
+    phone: existingStoredUser?.phone || supabaseUser.phone || "",
+    birthDate: existingStoredUser?.birthDate || "",
+    address: existingStoredUser?.address || "",
+    licenseNumber: existingStoredUser?.licenseNumber || "",
+    language: normalizeLangCode(existingStoredUser?.language || db.defaultLanguage || "FR")
+  };
+  db.defaultLanguage = currentUser.language;
+  db.users = [currentUser];
+  updateHeaderProfileUI();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  activeVehicleId = resolveDefaultVehicleId(currentUser.id);
+  initAppAfterLogin();
+}
+window.autoTrackGoogleLogin = autoTrackGoogleLogin;
+
+(async function autoTrackSupabaseBoot(){
+  applyLanguageToDOM();
+  try {
+    const lib = window.supabase;
+    if (!lib?.createClient) return;
+    supabaseClient = lib.createClient(AUTOTRACK_SUPABASE_URL, AUTOTRACK_SUPABASE_KEY);
+    const { data } = await supabaseClient.auth.getSession();
+    await handleSupabaseSession(data?.session);
+    supabaseClient.auth.onAuthStateChange((_event, session) => { setTimeout(() => handleSupabaseSession(session), 0); });
+  } catch (e) {
+    console.error("AutoTrack initialization", e);
+  }
+})();
+
+function getUserInitials(user) {
+  if (!user) return "👤";
+  const fn = (user.firstName || "").trim();
+  const ln = (user.lastName || "").trim();
+  if (fn && ln) return (fn[0] + ln[0]).toUpperCase();
+  const dn = (user.displayName || user.email || "").trim();
+  if (!dn) return "👤";
+  const parts = dn.split(/\s+/);
+  return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : dn.slice(0, 2).toUpperCase();
+}
+
+function updateHeaderProfileUI() {
+  if (!currentUser) return;
+  const avatarImg = document.getElementById("headerProfileAvatar");
+  const initialsEl = document.getElementById("headerProfileInitials");
+  const shortNameEl = document.getElementById("headerProfileShortName");
+  const initials = getUserInitials(currentUser);
+
+  if (shortNameEl) {
+    shortNameEl.textContent = currentUser.firstName || currentUser.displayName || "Profil";
+  }
+  if (currentUser.avatarUrl && avatarImg) {
+    avatarImg.src = currentUser.avatarUrl;
+    avatarImg.classList.remove("hidden");
+    initialsEl?.classList.add("hidden");
+    avatarImg.onerror = () => {
+      avatarImg.classList.add("hidden");
+      if (initialsEl) {
+        initialsEl.textContent = initials;
+        initialsEl.classList.remove("hidden");
+      }
+    };
+  } else if (initialsEl) {
+    avatarImg?.classList.add("hidden");
+    initialsEl.textContent = initials;
+    initialsEl.classList.remove("hidden");
+  }
+}
+
+function openProfileModal() {
+  if (!currentUser) return;
+  applyLanguageToDOM();
+  const fullName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ") || currentUser.displayName || "Utilisateur";
+  document.getElementById("modalProfileFullName").textContent = fullName;
+  document.getElementById("modalProfileEmail").textContent = currentUser.email || currentUser.username || "—";
+
+  const modalAvatar = document.getElementById("modalProfileAvatar");
+  const modalInitials = document.getElementById("modalProfileInitials");
+  const initials = getUserInitials(currentUser);
+
+  if (currentUser.avatarUrl && modalAvatar) {
+    modalAvatar.src = currentUser.avatarUrl;
+    modalAvatar.classList.remove("hidden");
+    modalInitials?.classList.add("hidden");
+    modalAvatar.onerror = () => {
+      modalAvatar.classList.add("hidden");
+      if (modalInitials) {
+        modalInitials.textContent = initials;
+        modalInitials.classList.remove("hidden");
+      }
+    };
+  } else if (modalInitials) {
+    modalAvatar?.classList.add("hidden");
+    modalInitials.textContent = initials;
+    modalInitials.classList.remove("hidden");
+  }
+
+  document.getElementById("pFirstName").value = currentUser.firstName || "";
+  document.getElementById("pLastName").value = currentUser.lastName || "";
+  document.getElementById("pDisplayName").value = currentUser.displayName || fullName;
+  document.getElementById("pEmail").value = currentUser.email || currentUser.username || "";
+  document.getElementById("pPhone").value = currentUser.phone || "";
+  document.getElementById("pBirthDate").value = currentUser.birthDate || "";
+  document.getElementById("pAddress").value = currentUser.address || "";
+  document.getElementById("pLicenseNumber").value = currentUser.licenseNumber || "";
+  document.getElementById("pLanguage").value = getActiveLanguage();
+
+  document.getElementById("profileModal").classList.remove("hidden");
+}
+
+function resetProfileFromGoogle() {
+  if (!supabaseUser || !currentUser) return;
+  const meta = supabaseUser.user_metadata || {};
+  const googleFullName = meta.full_name || meta.name || "";
+  const nameParts = googleFullName.trim().split(/\s+/);
+  const firstName = meta.given_name || (nameParts.length > 0 ? nameParts[0] : "");
+  const lastName = meta.family_name || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+
+  document.getElementById("pFirstName").value = firstName;
+  document.getElementById("pLastName").value = lastName;
+  document.getElementById("pDisplayName").value = googleFullName || currentUser.email || "";
+  showToast("Champs réinitialisés avec les informations de votre compte Google.", "info");
+}
+
+document.getElementById("profileForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const firstName = document.getElementById("pFirstName").value.trim();
+  const lastName = document.getElementById("pLastName").value.trim();
+  const customDisplay = document.getElementById("pDisplayName").value.trim();
+  const computedDisplay = customDisplay || [firstName, lastName].filter(Boolean).join(" ") || currentUser.email || "Utilisateur";
+  const chosenLang = normalizeLangCode(document.getElementById("pLanguage")?.value || "FR");
+
+  currentUser.firstName = firstName;
+  currentUser.lastName = lastName;
+  currentUser.displayName = computedDisplay;
+  currentUser.phone = document.getElementById("pPhone").value.trim();
+  currentUser.birthDate = document.getElementById("pBirthDate").value;
+  currentUser.address = document.getElementById("pAddress").value.trim();
+  currentUser.licenseNumber = document.getElementById("pLicenseNumber").value.trim().toUpperCase();
+  currentUser.language = chosenLang;
+  db.defaultLanguage = chosenLang;
+  try { localStorage.setItem("autotrack_lang", chosenLang); } catch {}
+
+  db.users = [currentUser];
+  saveDB(true);
+  applyLanguageToDOM();
+  updateHeaderProfileUI();
+  refreshAllViews();
+  closeModal("profileModal");
+  showToast(t("profileSaved"), "success");
+});
+</script>
 </body>
 </html>
