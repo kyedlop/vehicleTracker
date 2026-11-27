@@ -62,7 +62,7 @@
       </div>
 
       <button id="supabaseGoogleLogin" type="button" onclick="autoTrackGoogleLogin()" class="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-3 cursor-pointer">Continuer avec Google</button>
-      <button id="authBackDemoBtn" type="button" onclick="returnToDemoMode()" class="w-full mt-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-5 py-2.5 text-sm cursor-pointer">Retour à la démo (lecture seule)</button>
+      <button type="button" onclick="returnToDemoMode()" class="w-full mt-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-5 py-2.5 text-sm cursor-pointer">Retour à la démo (lecture seule)</button>
       <p id="supabaseLoginStatus" class="text-xs text-slate-500 mt-4">Connexion sécurisée — données privées</p>
       <button id="authExportBtn" type="button" onclick="exportBackupJSON()" class="mt-4 text-xs text-blue-600 underline cursor-pointer">Exporter les données locales (si disponibles)</button>
     </div>
@@ -120,7 +120,7 @@
 
       <!-- Bandeau de synchronisation -->
       <div id="unsavedBanner" class="hidden mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
-        <span id="unsavedBannerText">⚠️ Données modifiées localement. Exportez <strong>autotrack_data.json</strong> pour garder une copie locale.</span>
+        <span id="unsavedBannerText">⚠️ Données modifiées localement. Enregistrez ou exportez <strong>autotrack_data.json</strong> pour garder une copie locale.</span>
         <button id="unsavedDownloadBtn" type="button" onclick="exportBackupJSON()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer">Télécharger le JSON</button>
       </div>
 
@@ -150,7 +150,6 @@
           <div id="quickOilCard" class="bg-amber-100 rounded-2xl p-5 shadow-xs border border-amber-300"></div>
           <div id="quickInspectionCard" class="bg-sky-100 rounded-2xl p-5 shadow-xs border border-sky-300"></div>
         </div>
-        <div id="quickMarketValuationCard" class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200"></div>
       </section>
 
       <!-- ==================== ONGLET 1 : TABLEAU DE BORD ==================== -->
@@ -462,7 +461,7 @@
           </div>
           <div>
             <label id="eInfoLabel" class="block text-xs font-semibold text-slate-600 mb-1">Description / Libellé</label>
-            <input type="text" id="eInfo" required placeholder="ex: Entretien/Vidange Toyota, Péage, Lavage..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+            <input type="text" id="eInfo" required placeholder="ex: Entretien Toyota, Péage, Lavage..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
@@ -1343,7 +1342,7 @@ document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
 });
 
 function computeVehicleMetrics(v) {
-  const sortedFuel = [...(v.fuelLogs || [])].sort((a, b) => (Number(a.odometer) || 0) - (Number(b.odometer) || 0));
+  const sortedFuel = [...(v.fuelLogs || [])].sort((a, b) => a.odometer - b.odometer);
   const enrichedFuel = [];
   let totalFuelCost = 0;
   let totalLiters = 0;
@@ -1354,7 +1353,7 @@ function computeVehicleMetrics(v) {
     const row = sortedFuel[i];
     const prev = i > 0 ? sortedFuel[i - 1] : null;
     const days = prev ? Math.max(0, Math.round((new Date(row.date) - new Date(prev.date)) / 86400000)) : null;
-    const dist = prev ? Math.max(0, (Number(row.odometer) || 0) - (Number(prev.odometer) || 0)) : 0;
+    const dist = prev ? Math.max(0, row.odometer - prev.odometer) : 0;
     const liters = row.liters || (row.pricePerLiter > 0 ? row.cost / row.pricePerLiter : 0);
     const conso100 = (dist > 0 && liters > 0) ? (liters / dist) * 100 : null;
     const cost100 = (dist > 0 && row.cost > 0) ? (row.cost / dist) * 100 : null;
@@ -1370,7 +1369,7 @@ function computeVehicleMetrics(v) {
     enrichedFuel.push({ ...row, days, dist, liters, conso100, cost100 });
   }
 
-  const sortedExp = [...(v.expenses || [])].sort((a, b) => new Date(a.date) - new Date(b.date) || (Number(a.odometer) || 0) - (Number(b.odometer) || 0));
+  const sortedExp = [...(v.expenses || [])].sort((a, b) => new Date(a.date) - new Date(b.date) || a.odometer - b.odometer);
   let totalExpenses = 0;
   const enrichedExp = sortedExp.map(item => {
     totalExpenses += Number(item.cost || 0);
@@ -1403,11 +1402,12 @@ function computeVehicleMetrics(v) {
     }
   });
 
-  const maxFuelOdo = sortedFuel.length ? (Number(sortedFuel[sortedFuel.length - 1].odometer) || 0) : v.initialOdometer;
-  const maxExpOdo = sortedExp.length ? Math.max(...sortedExp.map(e => Number(e.odometer) || 0)) : v.initialOdometer;
-  const currentOdometer = Math.max(Number(v.initialOdometer) || 0, maxFuelOdo, maxExpOdo);
-  const totalKmDriven = Math.max(0, currentOdometer - (Number(v.initialOdometer) || 0));
-  const calcDenominatorKm = Math.max(1, totalKmDriven);
+  const maxFuelOdo = sortedFuel.length ? sortedFuel[sortedFuel.length - 1].odometer : v.initialOdometer;
+  const maxExpOdo = sortedExp.length ? Math.max(...sortedExp.map(e => e.odometer || 0)) : v.initialOdometer;
+  const currentOdometer = Math.max(v.initialOdometer, maxFuelOdo, maxExpOdo);
+  const totalKmDriven = Math.max(0, currentOdometer - v.initialOdometer);
+  const hasDrivenKm = totalKmDriven > 0;
+  const calcDenominatorKm = hasDrivenKm ? totalKmDriven : 1;
 
   const purchaseDt = new Date(v.purchaseDate);
   const today = new Date();
@@ -1415,7 +1415,7 @@ function computeVehicleMetrics(v) {
   const yearsOwned = Math.floor(daysOwned / 365);
   const remDays = daysOwned % 365;
 
-  const kmPerDay = calcDenominatorKm / daysOwned;
+  const kmPerDay = totalKmDriven / daysOwned;
   const kmPerWeek = kmPerDay * 7;
   const kmPerYear = kmPerDay * 365;
   const fixedRate = v.depreciationFixedPerDay !== undefined ? v.depreciationFixedPerDay : 2.97126;
@@ -1427,13 +1427,13 @@ function computeVehicleMetrics(v) {
 
   const runningAndDepCost = totalFuelCost + totalExpenses + totalDepreciation;
   const costPerDay = runningAndDepCost / daysOwned;
-  const costPerKm = runningAndDepCost / calcDenominatorKm;
+  const costPerKm = hasDrivenKm ? (runningAndDepCost / totalKmDriven) : 0;
   const purchaseCostPerDay = v.purchasePrice / daysOwned;
-  const purchaseCostPerKm = v.purchasePrice / calcDenominatorKm;
+  const purchaseCostPerKm = hasDrivenKm ? (v.purchasePrice / totalKmDriven) : 0;
   const totalCostPerDay = costPerDay + purchaseCostPerDay;
-  const totalCostPerKm = costPerKm + purchaseCostPerKm;
+  const totalCostPerKm = hasDrivenKm ? (costPerKm + purchaseCostPerKm) : 0;
   const totalCostPerMonth = totalCostPerDay * 30;
-  const fuelCostPerKm = totalFuelCost / calcDenominatorKm;
+  const fuelCostPerKm = hasDrivenKm ? (totalFuelCost / totalKmDriven) : 0;
 
   const avgConso100 = validConsoList.length
     ? validConsoList.reduce((s, x) => s + x.conso100, 0) / validConsoList.length
@@ -1467,27 +1467,12 @@ function computeVehicleMetrics(v) {
     }
   });
 
-  // Dernière vidange depuis l'historique des dépenses ; sinon 1er kilométrage des pleins
-  const firstFuelLog = sortedFuel[0] || null;
-  const fallbackOdo = Number(firstFuelLog?.odometer ?? v.initialOdometer ?? 0) || 0;
-  const fallbackDateStr = firstFuelLog?.date || v.purchaseDate || new Date().toISOString().slice(0, 10);
-
   const oilChangeEntries = enrichedExp
-    .filter(e => {
-      const txt = `${e.info || ""} ${e.description || ""} ${e.category || ""}`;
-      return /vidange/i.test(txt);
-    })
-    .sort((a, b) => (Number(b.odometer) || 0) - (Number(a.odometer) || 0) || String(b.date || "").localeCompare(String(a.date || "")));
-
-  const hasOilChangeExpense = oilChangeEntries.length > 0;
-  const lastOilChange = hasOilChangeExpense ? oilChangeEntries[0] : null;
-  const lastOilChangeOdo = hasOilChangeExpense
-    ? (Number(lastOilChange.odometer) || fallbackOdo)
-    : fallbackOdo;
-  const lastOilChangeDateStr = hasOilChangeExpense
-    ? (lastOilChange.date || fallbackDateStr)
-    : fallbackDateStr;
-
+    .filter(e => /vidange/i.test(e.info || ""))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || (b.odometer || 0) - (a.odometer || 0));
+  const lastOilChange = oilChangeEntries[0] || { date: "2026-08-27", odometer: 120288 };
+  const lastOilChangeOdo = Number(lastOilChange.odometer) || 120288;
+  const lastOilChangeDateStr = lastOilChange.date || "2026-08-27";
   const targetOilChangeOdo = lastOilChangeOdo + 15000;
   const kmRemainingToOilChange = Math.max(0, targetOilChangeOdo - currentOdometer);
 
@@ -1513,7 +1498,7 @@ function computeVehicleMetrics(v) {
     kmPerDay, kmPerWeek, kmPerYear, depPerDay, depPerMonth, totalDepreciation, currentValue,
     costPerDay, costPerKm, totalCostPerDay, totalCostPerMonth, totalCostPerKm, fuelCostPerKm,
     avgConso100, minConso, maxConso, minPriceLiter, maxPriceLiter,
-    hasOilChangeExpense, fallbackOdo, lastOilChangeOdo, lastOilChangeDateStr, targetOilChangeOdo, kmRemainingToOilChange,
+    lastOilChangeOdo, lastOilChangeDateStr, targetOilChangeOdo, kmRemainingToOilChange,
     nextOilChangeDate, nextOilChangeReason
   };
 }
@@ -1798,9 +1783,9 @@ function renderCharts(v, m) {
   const valLabels = [];
   const valSeries = [];
   for (let i = 0; i <= steps; i++) {
-    const stepDt = new Date(startDt.getTime() + ((nowDt - startDt) * i) / steps);
-    const d = Math.max(0, Math.floor((stepDt - startDt) / 86400000));
-    valLabels.push(stepDt.toISOString().slice(0, 10));
+    const t = new Date(startDt.getTime() + ((nowDt - startDt) * i) / steps);
+    const d = Math.max(0, Math.floor((t - startDt) / 86400000));
+    valLabels.push(t.toISOString().slice(0, 10));
     const projectedKm = m.kmPerDay * d;
     const depreciation = Math.min(v.purchasePrice, (v.depreciationFixedPerDay || 2.97126) * d + (v.depreciationPerKmDay || 0.090022) * projectedKm);
     valSeries.push(Math.max(0, Number((v.purchasePrice - depreciation).toFixed(0))));
@@ -2050,7 +2035,7 @@ function renderFuelDetailsTab() {
   const typeSelect = document.getElementById("fuelDetailTypeFilter");
   const currentTypeVal = typeSelect.value;
   const types = [...new Set(m.enrichedFuel.map(x => x.fuelType).filter(Boolean))];
-  typeSelect.innerHTML = `<option value="ALL">Tous carburants</option>` + types.map(fuelOpt => `<option value="${fuelOpt}" ${fuelOpt === currentTypeVal ? "selected" : ""}>${fuelOpt}</option>`).join("");
+  typeSelect.innerHTML = `<option value="ALL">Tous carburants</option>` + types.map(t => `<option value="${t}" ${t === currentTypeVal ? "selected" : ""}>${t}</option>`).join("");
 
   const avgPriceLiter = m.totalLiters > 0 ? m.totalFuelCost / m.totalLiters : 0;
   const avgCost100 = m.avgConso100 * avgPriceLiter;
@@ -2425,7 +2410,6 @@ function renderQuickAccess() {
     if (infoCard) infoCard.innerHTML = t("noVehicle");
     if (oilCard) oilCard.innerHTML = "";
     if (inspectionCard) inspectionCard.innerHTML = "";
-    renderQuickMarketValuation(null, null);
     return;
   }
   const m = computeVehicleMetrics(v);
@@ -2442,14 +2426,8 @@ function renderQuickAccess() {
 
   if (oilCard) {
     const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
-    const sourceNote = m.hasOilChangeExpense
-      ? `Dernière vidange (dépenses) à <strong>${fmtNum(m.lastOilChangeOdo, 0)} km</strong> (${new Date(m.lastOilChangeDateStr + "T12:00:00").toLocaleDateString("fr-FR")})`
-      : `Aucune dépense de vidange trouvée — base sur le 1er plein à <strong>${fmtNum(m.lastOilChangeOdo, 0)} km</strong>`;
-    const yearLimitDate = new Date(m.lastOilChangeDateStr + "T12:00:00");
-    yearLimitDate.setFullYear(yearLimitDate.getFullYear() + 1);
-    const yearLimitStr = !isNaN(yearLimitDate.getTime()) ? yearLimitDate.toLocaleDateString("fr-FR") : "—";
     oilCard.innerHTML = `<div class="font-bold">🛢️ Prochaine vidange estimée : <span class="text-amber-800">${m.nextOilChangeDate instanceof Date && !isNaN(m.nextOilChangeDate) ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : "Date indisponible"}</span></div>
-    <p class="text-sm text-amber-900 mt-2">${sourceNote} • Seuil <strong>${fmtNum(m.targetOilChangeOdo, 0)} km</strong> (+15 000 km, reste <strong>${fmtNum(remaining, 0)} km</strong> à ~${fmtNum(m.kmPerWeek, 0)} km/sem) ou 1 an (${yearLimitStr})</p>`;
+    <p class="text-sm text-amber-900 mt-2">Dernière à ${fmtNum(m.lastOilChangeOdo,0)} km • Seuil ${fmtNum(m.targetOilChangeOdo,0)} km (reste ${fmtNum(remaining,0)} km à ~${fmtNum(m.kmPerWeek,0)} km/sem) ou 1 an (${m.nextOilChangeReason === "échéance 1 an" ? m.nextOilChangeDate.toLocaleDateString("fr-FR") : new Date(new Date(m.lastOilChangeDateStr+"T12:00:00").setFullYear(new Date(m.lastOilChangeDateStr+"T12:00:00").getFullYear()+1)).toLocaleDateString("fr-FR")})</p>`;
   }
 
   if (inspectionCard) {
@@ -2472,215 +2450,6 @@ function renderQuickAccess() {
       <p class="text-sm text-sky-900 mt-2">Ajoutez la date du prochain contrôle technique dans la fiche du véhicule (onglet <strong>Véhicules</strong>).</p>`;
     }
   }
-  renderQuickMarketValuation(v, m);
-}
-
-function detectUserCountryInfo(v) {
-  const lang = getActiveLanguage();
-  const locale = getLangMeta(lang).locale || "fr-FR";
-  const curr = getVehicleCurrencyCode(v);
-
-  const countryMap = {
-    FR: { code: "FR", name: "France", currency: "EUR", marketplaces: ["LeBonCoin", "La Centrale", "AutoScout24 France"] },
-    GB: { code: "GB", name: "Royaume-Uni", currency: "GBP", marketplaces: ["AutoTrader UK", "Motors.co.uk", "CarGurus UK"] },
-    DE: { code: "DE", name: "Allemagne", currency: "EUR", marketplaces: ["Mobile.de", "AutoScout24 DE", "Heycar DE"] },
-    NL: { code: "NL", name: "Pays-Bas", currency: "EUR", marketplaces: ["AutoTrack.nl", "Marktplaats", "Gaspedaal.nl"] },
-    ES: { code: "ES", name: "Espagne", currency: "EUR", marketplaces: ["Coches.net", "AutoScout24 ES", "Wallapop"] },
-    IT: { code: "IT", name: "Italie", currency: "EUR", marketplaces: ["AutoScout24 IT", "Subito.it", "Automobile.it"] },
-    MU: { code: "MU", name: "Maurice", currency: "MUR", marketplaces: ["Lexpressproperty / Annonces Maurice", "MyCar.mu", "Mauritius Car Market"] },
-    US: { code: "US", name: "États-Unis", currency: "USD", marketplaces: ["Autotrader US", "Cars.com", "CarGurus US"] },
-    CH: { code: "CH", name: "Suisse", currency: "CHF", marketplaces: ["AutoScout24 CH", "CarForYou", "Comparis"] },
-    CA: { code: "CA", name: "Canada", currency: "CAD", marketplaces: ["AutoTrader.ca", "Clutch", "CarGurus CA"] },
-    IN: { code: "IN", name: "Inde", currency: "INR", marketplaces: ["CarDekho", "Spinny", "Cars24"] }
-  };
-
-  let detectedCode = null;
-  const profileAddr = String(currentUser?.address || "").toLowerCase();
-  if (profileAddr.includes("maurice") || profileAddr.includes("mauritius") || profileAddr.includes("port louis")) detectedCode = "MU";
-  else if (profileAddr.includes("france") || profileAddr.includes("reims") || profileAddr.includes("paris") || profileAddr.includes("chessy")) detectedCode = "FR";
-  else if (profileAddr.includes("uk") || profileAddr.includes("united kingdom") || profileAddr.includes("london") || profileAddr.includes("leicester")) detectedCode = "GB";
-  else if (profileAddr.includes("germany") || profileAddr.includes("deutschland") || profileAddr.includes("berlin") || profileAddr.includes("munich")) detectedCode = "DE";
-  else if (profileAddr.includes("netherlands") || profileAddr.includes("nederland") || profileAddr.includes("amsterdam")) detectedCode = "NL";
-  else if (profileAddr.includes("spain") || profileAddr.includes("españa")) detectedCode = "ES";
-  else if (profileAddr.includes("italy") || profileAddr.includes("italia")) detectedCode = "IT";
-
-  if (!detectedCode) {
-    const regionPart = (locale.split("-")[1] || "").toUpperCase();
-    if (countryMap[regionPart]) {
-      detectedCode = regionPart;
-    } else if (curr === "GBP") detectedCode = "GB";
-    else if (curr === "MUR") detectedCode = "MU";
-    else if (curr === "USD") detectedCode = "US";
-    else if (curr === "CHF") detectedCode = "CH";
-    else if (curr === "CAD") detectedCode = "CA";
-    else if (curr === "INR") detectedCode = "IN";
-    else if (curr === "EUR") detectedCode = "FR";
-    else detectedCode = "FR";
-  }
-
-  return countryMap[detectedCode] || countryMap.FR;
-}
-
-function estimateMarketListings(v, m, countryInfo) {
-  const currentYear = new Date().getFullYear();
-  const vehicleYear = Number(v.year) || (currentYear - 5);
-  const ageYears = Math.max(0, currentYear - vehicleYear);
-  const odo = Math.max(0, Number(m.currentOdometer) || 0);
-
-  const rawModelVal = Number(m.currentValue) || 0;
-  const rawPurchaseVal = Number(v.purchasePrice) || 15000;
-  let baseMid = rawModelVal > 0 ? rawModelVal * 1.06 : Math.max(1500, rawPurchaseVal * Math.pow(0.88, ageYears));
-
-  const expectedKm = Math.max(10000, ageYears * 13000);
-  const kmDeltaRatio = (expectedKm - odo) / Math.max(25000, expectedKm);
-  const kmAdjustedFactor = Math.max(0.72, Math.min(1.22, 1 + kmDeltaRatio * 0.28));
-  baseMid = Math.max(800, baseMid * kmAdjustedFactor);
-
-  const lowPrice = Math.round((baseMid * 0.88) / 50) * 50;
-  const midPrice = Math.round((baseMid) / 50) * 50;
-  const highPrice = Math.round((baseMid * 1.13) / 50) * 50;
-
-  const titleBase = `${v.brand || "Véhicule"} ${v.model || ""} ${v.version || ""}`.trim();
-  const fuelLabel = v.fuelType || "Standard";
-
-  const comps = [
-    {
-      label: "Offre marché basse (kilométrage élevé / reprise rapide)",
-      year: vehicleYear,
-      km: Math.round(odo * 1.12),
-      price: lowPrice,
-      source: countryInfo.marketplaces[0] || "Marché local"
-    },
-    {
-      label: "Référence équivalente (âge & kilométrage similaires)",
-      year: vehicleYear,
-      km: Math.round(odo),
-      price: midPrice,
-      source: countryInfo.marketplaces[1] || countryInfo.marketplaces[0] || "Marché local"
-    },
-    {
-      label: "Offre marché haute (faible km / état soigné)",
-      year: vehicleYear,
-      km: Math.max(1000, Math.round(odo * 0.85)),
-      price: highPrice,
-      source: countryInfo.marketplaces[2] || countryInfo.marketplaces[0] || "Marché local"
-    }
-  ];
-
-  let timingVerdict = "Moment neutre à évaluer";
-  let timingBadgeClass = "bg-amber-100 text-amber-900 border-amber-300";
-  let timingExplanation = "";
-
-  const annualLoss = (m.depPerDay || 0) * 365;
-  if (ageYears >= 8 || rawModelVal <= 6500) {
-    timingVerdict = "Bon moment si vous souhaitez limiter la décote future";
-    timingBadgeClass = "bg-emerald-100 text-emerald-900 border-emerald-300";
-    timingExplanation = `À ${ageYears} an(s) et ${fmtNum(odo, 0)} km, la valeur de revente se tasse progressivement. Vendre maintenant permet de figer une valeur autour de ${fmtEur(midPrice, 0, v)} avant de nouvelles réparations liées à l'âge.`;
-  } else if (rawModelVal > 0 && midPrice >= rawModelVal * 0.95) {
-    timingVerdict = "Fenêtre favorable pour vendre";
-    timingBadgeClass = "bg-emerald-100 text-emerald-900 border-emerald-300";
-    timingExplanation = `Le prix de marché estimé (${fmtEur(midPrice, 0, v)}) est aligné voire supérieur à votre valeur résiduelle comptable (${fmtEur(rawModelVal, 0, v)}).`;
-  } else {
-    timingVerdict = "Plutôt intéressant de conserver (usage rentable)";
-    timingBadgeClass = "bg-sky-100 text-sky-900 border-sky-300";
-    timingExplanation = `Le véhicule perd environ ${fmtEur(annualLoss, 0, v)}/an en décote théorique et affiche ${fmtNum(odo, 0)} km. Si vous n'avez pas de gros frais imminent, le garder reste souvent plus économique que de payer les frais de transaction et la décote d'un véhicule plus récent.`;
-  }
-
-  return {
-    countryInfo,
-    vehicleYear,
-    ageYears,
-    odo,
-    titleBase,
-    fuelLabel,
-    lowPrice,
-    midPrice,
-    highPrice,
-    comps,
-    timingVerdict,
-    timingBadgeClass,
-    timingExplanation
-  };
-}
-
-function renderQuickMarketValuation(v, m) {
-  const card = document.getElementById("quickMarketValuationCard");
-  if (!card) return;
-  if (!v || !m) {
-    card.innerHTML = "";
-    return;
-  }
-
-  const countryInfo = detectUserCountryInfo(v);
-  const est = estimateMarketListings(v, m, countryInfo);
-  const searchQuery = encodeURIComponent(`${v.brand || ""} ${v.model || ""} ${v.version || ""} ${est.vehicleYear} ${Math.round(est.odo / 1000) * 1000} km prix vente ${countryInfo.name}`);
-  const webSearchUrl = `https://www.google.com/search?q=${searchQuery}`;
-
-  card.innerHTML = `
-    <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
-      <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-base font-bold text-slate-900">🏷️ Cote Marché & Opportunité de Vente (${countryInfo.name})</h3>
-          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">${est.vehicleYear} (${est.ageYears} an(s)) • ${fmtNum(est.odo, 0)} km</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">
-          Modèle : <strong>${est.titleBase}</strong> (${est.fuelLabel}) • Marchés de référence (${countryInfo.name}) : <strong>${countryInfo.marketplaces.join(", ")}</strong>
-        </p>
-      </div>
-      <a href="${webSearchUrl}" target="_blank" rel="noopener noreferrer"
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold transition">
-        🔍 Rechercher sur le web
-      </a>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-        <div class="text-[11px] font-bold uppercase text-slate-400">Fourchette Basse</div>
-        <div class="text-lg font-bold text-slate-800 mt-0.5">${fmtEur(est.lowPrice, 0, v)}</div>
-        <div class="text-[11px] text-slate-500 mt-0.5">Reprise / vente rapide</div>
-      </div>
-      <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-        <div class="text-[11px] font-bold uppercase text-emerald-700">Prix Moyen Estimé</div>
-        <div class="text-xl font-extrabold text-emerald-700 mt-0.5">${fmtEur(est.midPrice, 0, v)}</div>
-        <div class="text-[11px] text-emerald-800 mt-0.5">Même année & ~${fmtNum(est.odo, 0)} km</div>
-      </div>
-      <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200">
-        <div class="text-[11px] font-bold uppercase text-blue-700">Fourchette Haute</div>
-        <div class="text-lg font-bold text-blue-800 mt-0.5">${fmtEur(est.highPrice, 0, v)}</div>
-        <div class="text-[11px] text-blue-700 mt-0.5">Particulier / faible km</div>
-      </div>
-    </div>
-
-    <div class="overflow-x-auto mb-4">
-      <table class="w-full text-left border-collapse text-xs">
-        <thead>
-          <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] border-b border-slate-200">
-            <th class="py-2 px-3">Profil d'annonce comparable</th>
-            <th class="py-2 px-3">Année</th>
-            <th class="py-2 px-3">Kilométrage</th>
-            <th class="py-2 px-3">Place de marché (${countryInfo.name})</th>
-            <th class="py-2 px-3 text-right">Prix de vente estimé</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          ${est.comps.map(c => `
-            <tr class="hover:bg-slate-50">
-              <td class="py-2 px-3 font-medium text-slate-800">${c.label}</td>
-              <td class="py-2 px-3">${c.year}</td>
-              <td class="py-2 px-3">${fmtNum(c.km, 0)} km</td>
-              <td class="py-2 px-3 text-slate-600">${c.source}</td>
-              <td class="py-2 px-3 text-right font-bold text-slate-900">${fmtEur(c.price, 0, v)}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="p-3.5 rounded-xl border ${est.timingBadgeClass}">
-      <div class="font-bold text-xs sm:text-sm">💡 Verdict vente : ${est.timingVerdict}</div>
-      <p class="text-xs mt-1 opacity-90">${est.timingExplanation}</p>
-    </div>
-  `;
 }
 
 function renderVehiclesTab() {
@@ -2897,9 +2666,9 @@ function renderBenefitsTab() {
   const totalExpenses = (v.expenses || []).reduce((a, x) => a + Number(x.cost || 0), 0);
   const totalFuel = (v.fuelLogs || []).reduce((a, x) => a + Number(x.cost || 0), 0);
   const carPrice = Number(v.purchasePrice || 0);
-  const totalAcquisitionAndRunningCost = totalExpenses + totalFuel + carPrice;
-  const diff = benefitTotal - totalAcquisitionAndRunningCost;
-  const coveragePct = totalAcquisitionAndRunningCost > 0 ? Math.min(100, Math.max(0, (benefitTotal / totalAcquisitionAndRunningCost) * 100)) : 0;
+  const cost = totalExpenses + totalFuel + carPrice;
+  const diff = benefitTotal - cost;
+  const coveragePct = cost > 0 ? Math.min(100, Math.max(0, (benefitTotal / cost) * 100)) : 0;
 
   const yearly = Object.keys(yearTotals).sort().map(y => `<span class="inline-flex rounded-lg px-2.5 py-1 mb-1" style="background:${color(y)}">${y}: <strong class="ml-1">${fmtEur(yearTotals[y], 2, v)}</strong></span>`).join(' ') || 'Aucun bénéfice enregistré';
 
@@ -2950,7 +2719,7 @@ function renderBenefitsTab() {
       <div class="grid grid-cols-2 gap-2.5">
         <div class="p-3 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-600">📉 Coût total</span>
-          <strong class="text-sm font-bold text-slate-900">${fmtEur(totalAcquisitionAndRunningCost, 2, v)}</strong>
+          <strong class="text-sm font-bold text-slate-900">${fmtEur(cost, 2, v)}</strong>
         </div>
         <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
           <span class="text-xs font-semibold text-emerald-700">📈 Bénéfices</span>
@@ -2983,13 +2752,13 @@ function renderBenefitsTab() {
   const historyDates = Object.keys(dailyTotals).sort();
   const cumulative = [];
   let running = 0;
-  historyDates.forEach(d => { running += dailyTotals[d]; cumulative.push(running - totalAcquisitionAndRunningCost); });
+  historyDates.forEach(d => { running += dailyTotals[d]; cumulative.push(running - cost); });
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const firstDate = historyDates.length ? new Date(historyDates[0] + 'T00:00:00') : null;
   const elapsedDays = firstDate ? Math.max(1, Math.ceil((today - firstDate) / 86400000)) : 0;
   const dailyRate = elapsedDays > 0 ? benefitTotal / elapsedDays : 0;
   let forecastDate = null;
-  if (diff < 0 && dailyRate > 0) { forecastDate = new Date(today.getTime() + Math.ceil((totalAcquisitionAndRunningCost - benefitTotal) / dailyRate) * 86400000); }
+  if (diff < 0 && dailyRate > 0) { forecastDate = new Date(today.getTime() + Math.ceil((cost - benefitTotal) / dailyRate) * 86400000); }
   const chartLabels = historyDates.map(d => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR'));
   const gapData = cumulative.slice();
   const projectionData = historyDates.map(() => null);
@@ -3028,9 +2797,9 @@ function switchTab(tabName) {
     b.classList.toggle("border-transparent", !active);
     b.classList.toggle("text-slate-500", !active);
   });
-  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles"].forEach(tabKey => {
-    const el = document.getElementById("tab-" + tabKey);
-    if (el) el.classList.toggle("hidden", tabKey !== tabName);
+  ["quick", "dashboard", "fuel-details", "expenses-details", "benefits", "vehicles"].forEach(t => {
+    const el = document.getElementById("tab-" + t);
+    if (el) el.classList.toggle("hidden", t !== tabName);
   });
   if (tabName === "dashboard") refreshAllViews();
   if (tabName === "vehicles") renderVehiclesTab();
