@@ -2753,10 +2753,51 @@ async function autoTrackGoogleLogin() {
   }
 }
 async function autoTrackLogout() {
-  if (supabaseClient) await supabaseClient.auth.signOut();
-  supabaseUser=null; currentUser=null; cloudFilePath=null;
-  document.getElementById("appView")?.classList.add("hidden");
-  document.getElementById("authWrapper")?.classList.remove("hidden");
+  const button = document.querySelector('button[onclick="autoTrackLogout()"]');
+  if (button) { button.disabled = true; button.textContent = "Déconnexion…"; }
+
+  try {
+    // Termine d'abord toute sauvegarde en attente avant de fermer la session.
+    if (typeof supabaseSaveTimer !== "undefined" && supabaseSaveTimer) {
+      clearTimeout(supabaseSaveTimer);
+      supabaseSaveTimer = null;
+    }
+    if (typeof uploadAutoTrackData === "function" && supabaseClient && supabaseUser && cloudFilePath) {
+      await uploadAutoTrackData();
+    }
+    if (supabaseClient) {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) throw error;
+    }
+  } catch (e) {
+    console.error("AutoTrack logout", e);
+    if (button) { button.disabled = false; button.textContent = "Déconnexion"; }
+    showToast("Impossible de terminer la déconnexion : " + (e.message || e), "error");
+    return;
+  }
+
+  supabaseUser = null;
+  currentUser = null;
+  cloudFilePath = null;
+  activeVehicleId = null;
+  sessionStorage.removeItem(SESSION_KEY);
+
+  // Les navigateurs n'autorisent généralement window.close() que pour les fenêtres
+  // ouvertes par JavaScript. On tente la fermeture, puis on affiche une consigne si elle est bloquée.
+  window.close();
+  setTimeout(() => {
+    if (!window.closed) {
+      document.body.innerHTML = `
+        <main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;text-align:center;">
+          <section style="max-width:440px;background:white;padding:32px;border-radius:18px;box-shadow:0 8px 30px #0f172a18;">
+            <div style="font-size:42px;margin-bottom:12px;">✓</div>
+            <h1 style="font-size:22px;margin:0 0 12px;">Déconnexion effectuée</h1>
+            <p style="line-height:1.6;margin:0 0 20px;">Votre session AutoTrack est fermée. Votre navigateur n'autorise pas la fermeture automatique de cet onglet.</p>
+            <button onclick="window.close()" style="padding:11px 18px;border:0;border-radius:10px;background:#2563eb;color:white;font-weight:600;cursor:pointer;">Fermer cette page</button>
+          </section>
+        </main>`;
+    }
+  }, 300);
 }
 async function handleSupabaseSession(session) {
   if (!session?.user) {
