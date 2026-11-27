@@ -2740,6 +2740,10 @@ function switchTab(tabName) {
     const el = document.getElementById("tab-" + t);
     if (el) el.classList.toggle("hidden", t !== tabName);
   });
+  // Rafraîchir explicitement les vues qui dépendent de graphiques ou de listes
+  // afin qu'elles soient construites au moment où leur onglet devient visible.
+  if (tabName === "dashboard") refreshAllViews();
+  if (tabName === "vehicles") renderVehiclesTab();
   if (tabName === "quick") renderQuickAccess();
   if (tabName === "fuel-details") renderFuelDetailsTab();
   if (tabName === "expenses-details") renderExpenseDetailsTab();
