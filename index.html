@@ -74,12 +74,15 @@
 
         <div class="flex items-center gap-2 flex-wrap">
           <span id="oneDriveHeaderStatus" title="État de synchronisation Supabase" class="cursor-default text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Supabase</span>
-          <button type="button" onclick="autoTrackLogout()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold">Déconnexion</button>
-          
-          <button type="button" onclick="triggerManualOrAutoSync()" title="Télécharger une copie de sécurité JSON" aria-label="Télécharger une copie de sécurité"
-            class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
-            💾
+          <button type="button" id="profileHeaderBtn" onclick="openProfileModal()" title="Mon profil Google & informations personnelles" aria-label="Mon profil"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold transition cursor-pointer">
+            <img id="headerProfileAvatar" src="" alt="Avatar" class="hidden w-6 h-6 rounded-full object-cover border border-white/30" />
+            <span id="headerProfileInitials" class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold">👤</span>
+            <span id="headerProfileShortName" class="hidden sm:inline max-w-[120px] truncate">Profil</span>
           </button>
+          <button type="button" onclick="autoTrackLogout()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold cursor-pointer">Déconnexion</button>
+          
+
           
         </div>
       </div>
@@ -502,6 +505,89 @@
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeModal('vehicleModal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
           <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODALE PROFIL UTILISATEUR ==================== -->
+  <div id="profileModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🪪</span>
+          <h3 class="text-lg font-bold text-slate-900">Mon Profil & Compte Google</h3>
+        </div>
+        <button type="button" onclick="closeModal('profileModal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold cursor-pointer">✕</button>
+      </div>
+
+      <!-- Carte Google en tête façon Google Account -->
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white mb-5 flex items-center gap-4 shadow-sm">
+        <div class="relative shrink-0">
+          <img id="modalProfileAvatar" src="" alt="Photo de profil Google" class="hidden w-16 h-16 rounded-full object-cover border-2 border-white/30 shadow" />
+          <div id="modalProfileInitials" class="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold border-2 border-white/30">👤</div>
+          <span title="Compte connecté via Google" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-slate-900 flex items-center justify-center text-xs font-extrabold shadow">G</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div id="modalProfileFullName" class="text-base font-bold truncate">Utilisateur Google</div>
+          <div id="modalProfileEmail" class="text-xs text-slate-300 truncate mt-0.5">—</div>
+          <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-[11px] font-medium">
+            <span>✓</span> Connecté avec Google
+          </div>
+        </div>
+      </div>
+
+      <form id="profileForm" class="space-y-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Prénom</label>
+            <input type="text" id="pFirstName" placeholder="Votre prénom" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nom</label>
+            <input type="text" id="pLastName" placeholder="Votre nom" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nom d'affichage (dans l'application)</label>
+          <input type="text" id="pDisplayName" placeholder="ex: Kris Yedlop" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Adresse e-mail Google <span class="text-[11px] font-normal text-slate-400">(gérée par Google)</span></label>
+          <input type="email" id="pEmail" readonly class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-sm cursor-not-allowed" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Téléphone</label>
+            <input type="tel" id="pPhone" placeholder="ex: +33 6 12 34 56 78" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Date de naissance</label>
+            <input type="date" id="pBirthDate" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Adresse postale / Ville</label>
+          <input type="text" id="pAddress" placeholder="ex: Reims, France" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">N° de permis de conduire <span class="text-[11px] font-normal text-slate-400">(optionnel)</span></label>
+          <input type="text" id="pLicenseNumber" placeholder="ex: 12AB34567" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm uppercase focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="resetProfileFromGoogle()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold cursor-pointer" title="Récupérer le nom et la photo d'origine depuis Google">
+            ↻ Réinitialiser depuis Google
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal('profileModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold cursor-pointer">Annuler</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">Enregistrer</button>
+          </div>
         </div>
       </form>
     </div>
@@ -1379,6 +1465,7 @@ function initAppAfterLogin() {
   document.getElementById("appView")?.classList.remove("hidden");
   const userBadge = document.getElementById("currentUserBadge");
   if (userBadge) userBadge.textContent = "👤 " + (currentUser?.displayName || "Utilisateur");
+  updateHeaderProfileUI();
 
   // Normaliser les données reçues du cloud avant de construire l'interface.
   if (!db || typeof db !== "object") db = { users: [], vehicles: [], defaultVehicleByUser: {} };
@@ -2928,10 +3015,31 @@ async function handleSupabaseSession(session) {
     console.error("AutoTrack Supabase load", e);
     return;
   }
-  currentUser={id:supabaseUser.id,username:supabaseUser.email||"google",displayName:supabaseUser.user_metadata?.full_name||supabaseUser.email||"Utilisateur"};
+  const meta = supabaseUser.user_metadata || {};
+  const existingStoredUser = Array.isArray(db.users) ? db.users.find(u => u && u.id === supabaseUser.id) : null;
+  const googleFullName = meta.full_name || meta.name || "";
+  const nameParts = googleFullName.trim().split(/\s+/);
+  const defaultFirstName = meta.given_name || (nameParts.length > 0 ? nameParts[0] : "");
+  const defaultLastName = meta.family_name || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+  const googleAvatar = meta.avatar_url || meta.picture || "";
+
+  currentUser = {
+    id: supabaseUser.id,
+    username: supabaseUser.email || "google",
+    email: supabaseUser.email || existingStoredUser?.email || "",
+    avatarUrl: googleAvatar || existingStoredUser?.avatarUrl || "",
+    firstName: existingStoredUser?.firstName !== undefined ? existingStoredUser.firstName : defaultFirstName,
+    lastName: existingStoredUser?.lastName !== undefined ? existingStoredUser.lastName : defaultLastName,
+    displayName: existingStoredUser?.displayName || googleFullName || supabaseUser.email || "Utilisateur",
+    phone: existingStoredUser?.phone || supabaseUser.phone || "",
+    birthDate: existingStoredUser?.birthDate || "",
+    address: existingStoredUser?.address || "",
+    licenseNumber: existingStoredUser?.licenseNumber || ""
+  };
   // Les véhicules du fichier personnel ou du modèle de démonstration appartiennent
   // désormais au compte connecté. L'ID d'exemple est propre à chaque espace.
   db.users=[currentUser];
+  updateHeaderProfileUI();
   db.vehicles.forEach(v=>{
     if(!v) return;
     v.ownerId=currentUser.id;
@@ -2984,6 +3092,124 @@ window.autoTrackGoogleLogin = autoTrackGoogleLogin;
     console.error("AutoTrack Supabase initialization",e);
   }
 })();
+
+
+// ==================== GESTION DU PROFIL UTILISATEUR ====================
+function getUserInitials(user) {
+  if (!user) return "👤";
+  const fn = (user.firstName || "").trim();
+  const ln = (user.lastName || "").trim();
+  if (fn && ln) return (fn[0] + ln[0]).toUpperCase();
+  const dn = (user.displayName || user.email || "").trim();
+  if (!dn) return "👤";
+  const parts = dn.split(/\s+/);
+  return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : dn.slice(0, 2).toUpperCase();
+}
+
+function updateHeaderProfileUI() {
+  if (!currentUser) return;
+  const avatarImg = document.getElementById("headerProfileAvatar");
+  const initialsEl = document.getElementById("headerProfileInitials");
+  const shortNameEl = document.getElementById("headerProfileShortName");
+  const initials = getUserInitials(currentUser);
+
+  if (shortNameEl) {
+    shortNameEl.textContent = currentUser.firstName || currentUser.displayName || "Profil";
+  }
+  if (currentUser.avatarUrl && avatarImg) {
+    avatarImg.src = currentUser.avatarUrl;
+    avatarImg.classList.remove("hidden");
+    initialsEl?.classList.add("hidden");
+    avatarImg.onerror = () => {
+      avatarImg.classList.add("hidden");
+      if (initialsEl) {
+        initialsEl.textContent = initials;
+        initialsEl.classList.remove("hidden");
+      }
+    };
+  } else if (initialsEl) {
+    avatarImg?.classList.add("hidden");
+    initialsEl.textContent = initials;
+    initialsEl.classList.remove("hidden");
+  }
+}
+
+function openProfileModal() {
+  if (!currentUser) return;
+  const fullName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ") || currentUser.displayName || "Utilisateur";
+  document.getElementById("modalProfileFullName").textContent = fullName;
+  document.getElementById("modalProfileEmail").textContent = currentUser.email || currentUser.username || "—";
+
+  const modalAvatar = document.getElementById("modalProfileAvatar");
+  const modalInitials = document.getElementById("modalProfileInitials");
+  const initials = getUserInitials(currentUser);
+
+  if (currentUser.avatarUrl && modalAvatar) {
+    modalAvatar.src = currentUser.avatarUrl;
+    modalAvatar.classList.remove("hidden");
+    modalInitials?.classList.add("hidden");
+    modalAvatar.onerror = () => {
+      modalAvatar.classList.add("hidden");
+      if (modalInitials) {
+        modalInitials.textContent = initials;
+        modalInitials.classList.remove("hidden");
+      }
+    };
+  } else if (modalInitials) {
+    modalAvatar?.classList.add("hidden");
+    modalInitials.textContent = initials;
+    modalInitials.classList.remove("hidden");
+  }
+
+  document.getElementById("pFirstName").value = currentUser.firstName || "";
+  document.getElementById("pLastName").value = currentUser.lastName || "";
+  document.getElementById("pDisplayName").value = currentUser.displayName || fullName;
+  document.getElementById("pEmail").value = currentUser.email || currentUser.username || "";
+  document.getElementById("pPhone").value = currentUser.phone || "";
+  document.getElementById("pBirthDate").value = currentUser.birthDate || "";
+  document.getElementById("pAddress").value = currentUser.address || "";
+  document.getElementById("pLicenseNumber").value = currentUser.licenseNumber || "";
+
+  document.getElementById("profileModal").classList.remove("hidden");
+}
+
+function resetProfileFromGoogle() {
+  if (!supabaseUser || !currentUser) return;
+  const meta = supabaseUser.user_metadata || {};
+  const googleFullName = meta.full_name || meta.name || "";
+  const nameParts = googleFullName.trim().split(/\s+/);
+  const firstName = meta.given_name || (nameParts.length > 0 ? nameParts[0] : "");
+  const lastName = meta.family_name || (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+
+  document.getElementById("pFirstName").value = firstName;
+  document.getElementById("pLastName").value = lastName;
+  document.getElementById("pDisplayName").value = googleFullName || currentUser.email || "";
+  showToast("Champs réinitialisés avec les informations de votre compte Google.", "info");
+}
+
+document.getElementById("profileForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const firstName = document.getElementById("pFirstName").value.trim();
+  const lastName = document.getElementById("pLastName").value.trim();
+  const customDisplay = document.getElementById("pDisplayName").value.trim();
+  const computedDisplay = customDisplay || [firstName, lastName].filter(Boolean).join(" ") || currentUser.email || "Utilisateur";
+
+  currentUser.firstName = firstName;
+  currentUser.lastName = lastName;
+  currentUser.displayName = computedDisplay;
+  currentUser.phone = document.getElementById("pPhone").value.trim();
+  currentUser.birthDate = document.getElementById("pBirthDate").value;
+  currentUser.address = document.getElementById("pAddress").value.trim();
+  currentUser.licenseNumber = document.getElementById("pLicenseNumber").value.trim().toUpperCase();
+
+  db.users = [currentUser];
+  saveDB(true);
+  updateHeaderProfileUI();
+  closeModal("profileModal");
+  showToast("Profil mis à jour et synchronisé.", "success");
+});
 
 </script>
 </body>
