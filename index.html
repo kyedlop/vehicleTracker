@@ -2782,26 +2782,21 @@ async function autoTrackLogout() {
   activeVehicleId = null;
   sessionStorage.removeItem(SESSION_KEY);
 
-  // Les navigateurs n'autorisent généralement window.close() que pour les fenêtres
-  // ouvertes par JavaScript. On tente la fermeture, puis on affiche une consigne si elle est bloquée.
-  window.close();
-  setTimeout(() => {
-    if (!window.closed) {
-      document.body.innerHTML = `
-        <main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;text-align:center;">
-          <section style="max-width:440px;background:white;padding:32px;border-radius:18px;box-shadow:0 8px 30px #0f172a18;">
-            <div style="font-size:42px;margin-bottom:12px;">✓</div>
-            <h1 style="font-size:22px;margin:0 0 12px;">Déconnexion effectuée</h1>
-            <p style="line-height:1.6;margin:0 0 20px;">Votre session AutoTrack est fermée. Votre navigateur n'autorise pas la fermeture automatique de cet onglet.</p>
-            <button onclick="window.close()" style="padding:11px 18px;border:0;border-radius:10px;background:#2563eb;color:white;font-weight:600;cursor:pointer;">Fermer cette page</button>
-          </section>
-        </main>`;
-    }
-  }, 300);
+  // La session est fermée. Le navigateur ne permet pas toujours à une page
+  // ouverte manuellement de fermer elle-même son onglet : on affiche une consigne claire.
+  document.body.innerHTML = `
+    <main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;text-align:center;">
+      <section style="max-width:480px;background:white;padding:32px;border-radius:18px;box-shadow:0 8px 30px #0f172a18;">
+        <div style="font-size:42px;margin-bottom:12px;">✓</div>
+        <h1 style="font-size:22px;margin:0 0 12px;">Déconnexion effectuée</h1>
+        <p style="line-height:1.6;margin:0 0 12px;">Votre session AutoTrack est bien fermée.</p>
+        <p style="line-height:1.6;margin:0;color:#475569;">Vous pouvez maintenant fermer cet onglet avec <strong>Ctrl + W</strong> ou en cliquant sur la croix <strong>×</strong> de l'onglet.</p>
+      </section>
+    </main>`;
 }
 async function handleSupabaseSession(session) {
   if (!session?.user) {
-    supabaseUser=null; currentUser=null;
+    supabaseUser=null; currentUser=null; cloudFilePath=null;
     document.getElementById("appView")?.classList.add("hidden");
     document.getElementById("authWrapper")?.classList.remove("hidden");
     return;
@@ -2809,6 +2804,7 @@ async function handleSupabaseSession(session) {
   supabaseUser=session.user;
   cloudFilePath=supabaseUser.id+"/"+getCloudFileName(supabaseUser.email);
   const status=document.getElementById("supabaseLoginStatus"); if(status) status.textContent="Connexion à votre espace…";
+  let createFromSample = false;
   try {
     const {data,error}=await supabaseClient.storage.from(AUTOTRACK_BUCKET).download(cloudFilePath);
     if(!error && data) {
@@ -2816,17 +2812,34 @@ async function handleSupabaseSession(session) {
       if(!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Fichier cloud invalide. Import interrompu.");
       db=remote; localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
     } else if (error && (error.statusCode === "404" || error.status === 404 || error.message?.toLowerCase().includes("not found"))) {
-      // Premier accès : conserver les données locales et créer le fichier cloud.
-      if(!Array.isArray(db.users)) db.users=[];
-      if(!Array.isArray(db.vehicles)) db.vehicles=[];
-      await uploadAutoTrackData();
+      // Première connexion : récupérer le jeu de démonstration partagé.
+      const sampleResult = await supabaseClient.storage.from(AUTOTRACK_BUCKET).download("samples/sample.json");
+      if (sampleResult.error) throw new Error("Impossible de charger sample.json : " + sampleResult.error.message + ". Vérifiez que le fichier samples/sample.json existe et que la règle Storage autorise sa lecture.");
+      const sampleData = JSON.parse(await sampleResult.data.text());
+      if (!sampleData || !Array.isArray(sampleData.vehicles) || !sampleData.vehicles.length) throw new Error("Le fichier sample.json ne contient aucun véhicule de démonstration valide.");
+      db = sampleData;
+      if (!Array.isArray(db.users)) db.users = [];
+      createFromSample = true;
     } else if(error) throw error;
-  } catch(e) { showToast("Chargement Supabase impossible : "+(e.message||e),"error"); }
+  } catch(e) {
+    showToast("Chargement Supabase impossible : "+(e.message||e),"error");
+    console.error("AutoTrack Supabase load", e);
+    return;
+  }
   currentUser={id:supabaseUser.id,username:supabaseUser.email||"google",displayName:supabaseUser.user_metadata?.full_name||supabaseUser.email||"Utilisateur"};
-  // Après migration, rattacher les véhicules importés au compte Google/Supabase connecté.
-  db.users=[currentUser]; db.vehicles.forEach(v=>{v.ownerId=currentUser.id;});
+  // Les véhicules du fichier personnel ou du modèle de démonstration appartiennent
+  // désormais au compte connecté. L'ID d'exemple est propre à chaque espace.
+  db.users=[currentUser];
+  db.vehicles.forEach(v=>{ if(v) v.ownerId=currentUser.id; });
   localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
   activeVehicleId=db.vehicles[0]?.id||null;
+  if (createFromSample) {
+    const stamp = new Date().toISOString();
+    db.lastUpdated = stamp;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+    await uploadAutoTrackData();
+    showToast("Bienvenue ! Un véhicule de démonstration a été ajouté à votre espace. Vous pouvez le consulter ou le supprimer lorsque vous ajouterez votre propre véhicule.","success");
+  }
   document.getElementById("authWrapper")?.classList.add("hidden");
   document.getElementById("appView")?.classList.remove("hidden");
   const badge=document.getElementById("currentUserBadge"); if(badge) badge.textContent="👤 "+currentUser.displayName;
