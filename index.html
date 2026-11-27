@@ -48,11 +48,11 @@
   </div>
 
   <!-- ==================== ÉCRAN DE CONNEXION ==================== -->
-  <div id="authWrapper" class="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+  <div id="authWrapper" class="hidden min-h-screen flex items-center justify-center p-5 bg-slate-100">
     <div class="bg-white max-w-md w-full rounded-3xl shadow-lg p-8 text-center">
       <div class="text-5xl mb-3">🚗</div>
       <h1 id="authTitle" class="text-2xl font-bold text-slate-900 mb-2">AutoTrack</h1>
-      <p id="authSubtitle" class="text-sm text-slate-600 mb-5">Connectez-vous pour retrouver et synchroniser vos données automobiles.</p>
+      <p id="authSubtitle" class="text-sm text-slate-600 mb-5">Connectez-vous avec Google pour créer votre véhicule et synchroniser vos données.</p>
 
       <div class="text-left mb-5">
         <label id="authLangLabel" for="loginLanguageSelect" class="block text-xs font-semibold text-slate-600 mb-1">Langue / Language</label>
@@ -62,13 +62,14 @@
       </div>
 
       <button id="supabaseGoogleLogin" type="button" onclick="autoTrackGoogleLogin()" class="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-3 cursor-pointer">Continuer avec Google</button>
+      <button type="button" onclick="returnToDemoMode()" class="w-full mt-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-5 py-2.5 text-sm cursor-pointer">Retour à la démo (lecture seule)</button>
       <p id="supabaseLoginStatus" class="text-xs text-slate-500 mt-4">Connexion sécurisée — données privées</p>
-      <button id="authExportBtn" type="button" onclick="exportBackupJSON()" class="mt-5 text-xs text-blue-600 underline cursor-pointer">Exporter les données locales (si disponibles)</button>
+      <button id="authExportBtn" type="button" onclick="exportBackupJSON()" class="mt-4 text-xs text-blue-600 underline cursor-pointer">Exporter les données locales (si disponibles)</button>
     </div>
   </div>
 
   <!-- ==================== APPLICATION PRINCIPALE ==================== -->
-  <div id="appView" class="hidden">
+  <div id="appView">
     <!-- Barre supérieure -->
     <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
       <div class="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center justify-between gap-3">
@@ -84,12 +85,12 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
-          <span id="oneDriveHeaderStatus" title="État de sauvegarde" class="cursor-default text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">☁️ Données sauvegardées</span>
-          <button type="button" id="profileHeaderBtn" onclick="openProfileModal()" title="Mon profil" aria-label="Mon profil"
+          <span id="oneDriveHeaderStatus" title="État de sauvegarde" class="cursor-default text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full font-medium">👁️ Mode démo (lecture seule)</span>
+          <button type="button" id="profileHeaderBtn" onclick="handleHeaderAccountClick()" title="Mon profil / Connexion Google" aria-label="Mon profil"
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold transition cursor-pointer">
             <img id="headerProfileAvatar" src="" alt="Avatar" class="hidden w-6 h-6 rounded-full object-cover border border-white/30" />
             <span id="headerProfileInitials" class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold">👤</span>
-            <span id="headerProfileShortName" class="hidden sm:inline max-w-[120px] truncate">Profil</span>
+            <span id="headerProfileShortName" class="hidden sm:inline max-w-[140px] truncate">Connexion Google</span>
           </button>
         </div>
       </div>
@@ -109,6 +110,14 @@
 
     <!-- Contenu principal -->
     <main class="max-w-7xl mx-auto px-4 py-5">
+      <!-- Bandeau mode démo / lecture seule -->
+      <div id="demoReadOnlyBanner" class="mb-5 p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
+        <span>👁️ <strong>Mode démonstration (visu uniquement)</strong> : consultez le véhicule Démo. Connectez-vous avec Google pour créer votre propre véhicule.</span>
+        <button type="button" onclick="openVehicleModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer">
+          Se connecter & créer un véhicule
+        </button>
+      </div>
+
       <!-- Bandeau de synchronisation -->
       <div id="unsavedBanner" class="hidden mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
         <span id="unsavedBannerText">⚠️ Données modifiées localement. Enregistrez ou exportez <strong>autotrack_data.json</strong> pour garder une copie locale.</span>
@@ -129,7 +138,7 @@
       <!-- ACCÈS RAPIDE -->
       <section id="tab-quick" class="space-y-4">
         <p id="quickUpdated" class="text-xs text-slate-500 text-left"></p>
-        <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200">
+        <div id="quickActionsBar" class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button id="quickBtnFuel" onclick="openFuelModal()" class="p-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow cursor-pointer">⛽ + Plein</button>
             <button id="quickBtnExpense" onclick="openExpenseModal()" class="p-5 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white text-lg font-bold shadow cursor-pointer">🧾 + Dépense</button>
@@ -338,7 +347,7 @@
       <section id="tab-vehicles" class="hidden">
         <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-            <h3 id="vehiclesTabTitle" class="text-base font-bold text-slate-900">🚘 Mes véhicules</h3>
+            <h3 id="vehiclesTabTitle" class="text-base font-bold text-slate-900">🚘 Véhicules</h3>
             <button id="vehiclesTabAddBtn" type="button" onclick="openVehicleModal()"
               class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition cursor-pointer">
               + Ajouter un véhicule
@@ -673,7 +682,7 @@ const SUPPORTED_LANGUAGES = [
 const I18N = {
   FR: {
     authTitle: "AutoTrack",
-    authSubtitle: "Connectez-vous pour retrouver et synchroniser vos données automobiles.",
+    authSubtitle: "Connectez-vous avec Google pour créer votre véhicule et synchroniser vos données.",
     langLabel: "Langue",
     googleLogin: "Continuer avec Google",
     loginRedirect: "Redirection vers Google…",
@@ -682,6 +691,7 @@ const I18N = {
     loginInit: "Initialisation en cours. Réessayez dans quelques secondes.",
     exportLocal: "Exporter les données locales (si disponibles)",
     savedOk: "☁️ Données sauvegardées",
+    demoModeBadge: "👁️ Mode démo (visu uniquement)",
     saving: "☁️ Sauvegarde…",
     saveErr: "⚠️ Sauvegarde indisponible",
     saveErrToast: "Erreur lors de la sauvegarde des données.",
@@ -727,7 +737,7 @@ const I18N = {
   },
   EN: {
     authTitle: "AutoTrack",
-    authSubtitle: "Sign in to access and sync your vehicle tracking data.",
+    authSubtitle: "Sign in with Google to create your vehicle and sync your data.",
     langLabel: "Language",
     googleLogin: "Continue with Google",
     loginRedirect: "Redirecting to Google…",
@@ -736,6 +746,7 @@ const I18N = {
     loginInit: "Initializing. Please try again in a few seconds.",
     exportLocal: "Export local data (if available)",
     savedOk: "☁️ Data saved",
+    demoModeBadge: "👁️ Demo mode (view only)",
     saving: "☁️ Saving…",
     saveErr: "⚠️ Save issue",
     saveErrToast: "Error saving data.",
@@ -778,384 +789,6 @@ const I18N = {
     confirmDelExpense: "Delete this expense?",
     confirmDelVehicle: "Are you sure you want to delete this vehicle and all its history?",
     confirmDelBenefit: "Delete this benefit entry?"
-  },
-  DE: {
-    authTitle: "AutoTrack",
-    authSubtitle: "Melden Sie sich an, um Ihre Fahrzeugdaten abzurufen und zu synchronisieren.",
-    langLabel: "Sprache",
-    googleLogin: "Mit Google fortfahren",
-    loginRedirect: "Weiterleitung zu Google…",
-    loginOpening: "Google-Anmeldung wird geöffnet…",
-    loginStatus: "Sichere Anmeldung — private Daten",
-    loginInit: "Wird initialisiert. Bitte in wenigen Sekunden erneut versuchen.",
-    exportLocal: "Lokale Daten exportieren (falls vorhanden)",
-    savedOk: "☁️ Daten gespeichert",
-    saving: "☁️ Speichern…",
-    saveErr: "⚠️ Speicherfehler",
-    saveErrToast: "Fehler beim Speichern der Daten.",
-    unsavedBanner: "⚠️ Lokale Änderungen vorhanden. Exportieren Sie <strong>autotrack_data.json</strong> für eine Sicherung.",
-    downloadJson: "JSON herunterladen",
-    noVehicle: "Kein Fahrzeug",
-    addVehicle: "+ Fahrzeug",
-    emptyTitle: "Kein Fahrzeug ausgewählt",
-    emptyDesc: "Fügen Sie Ihr Fahrzeug (Marke, Modell, Jahr, Leistung, Energie, Währung) hinzu.",
-    emptyAdd: "+ Fahrzeug hinzufügen",
-    tabQuick: "⚡ Schnellzugriff",
-    tabDashboard: "📊 Dashboard",
-    tabFuel: "📈 Tanken & Verbrauch",
-    tabExpenses: "📉 Ausgaben",
-    tabBenefits: "💶 Einnahmen",
-    tabVehicles: "🚘 Fahrzeuge",
-    quickFuel: "⛽ + Laden/Tanken",
-    quickExpense: "🧾 + Ausgabe",
-    quickBenefit: "💶 + Einnahme",
-    logout: "Abmelden",
-    loggingOut: "Abmelden…",
-    logoutErr: "Abmeldung fehlgeschlagen: ",
-    confirmTitle: "Bestätigung",
-    cancel: "Abbrechen",
-    deleteBtn: "Löschen",
-    saveBtn: "Speichern",
-    profileTitle: "Mein Profil & Google-Konto",
-    connectedGoogle: "Mit Google verbunden",
-    resetGoogle: "↻ Von Google zurücksetzen",
-    profileSaved: "Profil und Sprache gespeichert.",
-    vehicleSaved: "Fahrzeug gespeichert.",
-    vehicleDeleted: "Fahrzeug gelöscht.",
-    fuelSaved: "Eintrag gespeichert.",
-    fuelDeleted: "Eintrag gelöscht.",
-    expenseSaved: "Ausgabe gespeichert.",
-    expenseDeleted: "Ausgabe gelöscht.",
-    benefitSaved: "Einnahme gespeichert.",
-    benefitDeleted: "Einnahme gelöscht.",
-    confirmDelFuel: "Diesen Eintrag löschen?",
-    confirmDelExpense: "Diese Ausgabe löschen?",
-    confirmDelVehicle: "Möchten Sie dieses Fahrzeug und den gesamten Verlauf wirklich löschen?",
-    confirmDelBenefit: "Diese Einnahme löschen?"
-  },
-  NL: {
-    authTitle: "AutoTrack",
-    authSubtitle: "Log in om uw voertuiggegevens te openen en te synchroniseren.",
-    langLabel: "Taal",
-    googleLogin: "Doorgaan met Google",
-    loginRedirect: "Omleiden naar Google…",
-    loginOpening: "Google-aanmelding openen…",
-    loginStatus: "Veilig inloggen — privégegevens",
-    loginInit: "Bezig met initialiseren. Probeer het over enkele seconden opnieuw.",
-    exportLocal: "Lokale gegevens exporteren (indien beschikbaar)",
-    savedOk: "☁️ Gegevens opgeslagen",
-    saving: "☁️ Opslaan…",
-    saveErr: "⚠️ Opslaan mislukt",
-    saveErrToast: "Fout bij het opslaan van gegevens.",
-    unsavedBanner: "⚠️ Lokale wijzigingen. Exporteer <strong>autotrack_data.json</strong> voor een lokale back-up.",
-    downloadJson: "JSON downloaden",
-    noVehicle: "Geen voertuig",
-    addVehicle: "+ Voertuig",
-    emptyTitle: "Geen voertuig geselecteerd",
-    emptyDesc: "Voeg uw voertuig toe (merk, model, jaar, vermogen, energie, valuta) om te beginnen.",
-    emptyAdd: "+ Voertuig toevoegen",
-    tabQuick: "⚡ Snelmenu",
-    tabDashboard: "📊 Dashboard",
-    tabFuel: "📈 Tanken & Verbruik",
-    tabExpenses: "📉 Uitgaven",
-    tabBenefits: "💶 Opbrengsten",
-    tabVehicles: "🚘 Voertuigen",
-    quickFuel: "⛽ + Laden/Tanken",
-    quickExpense: "🧾 + Uitgave",
-    quickBenefit: "💶 + Opbrengst",
-    logout: "Uitloggen",
-    loggingOut: "Uitloggen…",
-    logoutErr: "Uitloggen mislukt: ",
-    confirmTitle: "Bevestiging",
-    cancel: "Annuleren",
-    deleteBtn: "Verwijderen",
-    saveBtn: "Opslaan",
-    profileTitle: "Mijn Profiel & Google-account",
-    connectedGoogle: "Verbonden met Google",
-    resetGoogle: "↻ Herstellen via Google",
-    profileSaved: "Profiel en taal opgeslagen.",
-    vehicleSaved: "Voertuig opgeslagen.",
-    vehicleDeleted: "Voertuig verwijderd.",
-    fuelSaved: "Invoer opgeslagen.",
-    fuelDeleted: "Invoer verwijderd.",
-    expenseSaved: "Uitgave opgeslagen.",
-    expenseDeleted: "Uitgave verwijderd.",
-    benefitSaved: "Opbrengst opgeslagen.",
-    benefitDeleted: "Opbrengst verwijderd.",
-    confirmDelFuel: "Deze invoer verwijderen?",
-    confirmDelExpense: "Deze uitgave verwijderen?",
-    confirmDelVehicle: "Weet u zeker dat u dit voertuig en de geschiedenis wilt verwijderen?",
-    confirmDelBenefit: "Deze opbrengst verwijderen?"
-  },
-  HI: {
-    authTitle: "AutoTrack",
-    authSubtitle: "अपने वाहन का डेटा देखने और सिंक करने के लिए साइन इन करें।",
-    langLabel: "भाषा",
-    googleLogin: "Google से जारी रखें",
-    loginRedirect: "Google पर रीडायरेक्ट किया जा रहा है…",
-    loginOpening: "Google साइन-इन खोला जा रहा है…",
-    loginStatus: "सुरक्षित साइन-इन — निजी डेटा",
-    loginInit: "प्रारंभ हो रहा है। कृपया कुछ सेकंड बाद पुनः प्रयास करें।",
-    exportLocal: "स्थानीय डेटा निर्यात करें (यदि उपलब्ध हो)",
-    savedOk: "☁️ डेटा सहेजा गया",
-    saving: "☁️ सहेजा जा रहा है…",
-    saveErr: "⚠️ सहेजने में त्रुटि",
-    saveErrToast: "डेटा सहेजने में त्रुटि हुई।",
-    unsavedBanner: "⚠️ स्थानीय बदलाव मौजूद हैं। बैकअप के लिए <strong>autotrack_data.json</strong> निर्यात करें।",
-    downloadJson: "JSON डाउनलोड करें",
-    noVehicle: "कोई वाहन नहीं",
-    addVehicle: "+ वाहन",
-    emptyTitle: "कोई वाहन चयनित नहीं है",
-    emptyDesc: "ट्रैकिंग शुरू करने के लिए अपना वाहन जोड़ें।",
-    emptyAdd: "+ वाहन जोड़ें",
-    tabQuick: "⚡ त्वरित पहुंच",
-    tabDashboard: "📊 डैशबोर्ड",
-    tabFuel: "📈 ईंधन और खपत",
-    tabExpenses: "📉 खर्च",
-    tabBenefits: "💶 लाभ",
-    tabVehicles: "🚘 वाहन",
-    quickFuel: "⛽ + भरें/चार्ज",
-    quickExpense: "🧾 + खर्च",
-    quickBenefit: "💶 + लाभ",
-    logout: "लॉग आउट",
-    loggingOut: "लॉग आउट हो रहा है…",
-    logoutErr: "लॉग आउट पूरा नहीं हो सका: ",
-    confirmTitle: "पुष्टि करें",
-    cancel: "रद्द करें",
-    deleteBtn: "हटाएं",
-    saveBtn: "सहेजें",
-    profileTitle: "मेरी प्रोफ़ाइल और Google खाता",
-    connectedGoogle: "Google से जुड़ा हुआ",
-    resetGoogle: "↻ Google से रीसेट करें",
-    profileSaved: "प्रोफ़ाइल और भाषा सहेजी गई।",
-    vehicleSaved: "वाहन सहेजा गया।",
-    vehicleDeleted: "वाहन हटाया गया।",
-    fuelSaved: "एंट्री सहेजी गई।",
-    fuelDeleted: "एंट्री हटाई गई।",
-    expenseSaved: "खर्च सहेजा गया।",
-    expenseDeleted: "खर्च हटाया गया।",
-    benefitSaved: "लाभ सहेजा गया।",
-    benefitDeleted: "लाभ हटाया गया।",
-    confirmDelFuel: "क्या आप इस एंट्री को हटाना चाहते हैं?",
-    confirmDelExpense: "क्या आप इस खर्च को हटाना चाहते हैं?",
-    confirmDelVehicle: "क्या आप इस वाहन और इसका सारा इतिहास हटाना चाहते हैं?",
-    confirmDelBenefit: "क्या आप इस लाभ एंट्री को हटाना चाहते हैं?"
-  },
-  AR: {
-    authTitle: "AutoTrack",
-    authSubtitle: "سجّل الدخول للوصول إلى بيانات مركبتك ومزامنتها.",
-    langLabel: "اللغة",
-    googleLogin: "المتابعة باستخدام Google",
-    loginRedirect: "جارٍ التحويل إلى Google…",
-    loginOpening: "جارٍ فتح تسجيل الدخول عبر Google…",
-    loginStatus: "تسجيل دخول آمن — بيانات خاصة",
-    loginInit: "جارٍ التهيئة. يُرجى المحاولة بعد ثوانٍ.",
-    exportLocal: "تصدير البيانات المحلية (إن وجدت)",
-    savedOk: "☁️ تم حفظ البيانات",
-    saving: "☁️ جارٍ الحفظ…",
-    saveErr: "⚠️ تعذّر الحفظ",
-    saveErrToast: "حدث خطأ أثناء حفظ البيانات.",
-    unsavedBanner: "⚠️ توجد تغييرات محلية. صدّر <strong>autotrack_data.json</strong> للاحتفاظ بنسخة محلية.",
-    downloadJson: "تنزيل JSON",
-    noVehicle: "لا توجد مركبة",
-    addVehicle: "+ مركبة",
-    emptyTitle: "لم يتم اختيار مركبة",
-    emptyDesc: "أضف مركبتك (النوع، الطراز، السنة، القدرة، الطاقة، العملة) للبدء.",
-    emptyAdd: "+ إضافة مركبة",
-    tabQuick: "⚡ وصول سريع",
-    tabDashboard: "📊 لوحة المعلومات",
-    tabFuel: "📈 الوقود والاستهلاك",
-    tabExpenses: "📉 المصروفات",
-    tabBenefits: "💶 الإيرادات",
-    tabVehicles: "🚘 المركبات",
-    quickFuel: "⛽ + تعبئة/شحن",
-    quickExpense: "🧾 + مصروف",
-    quickBenefit: "💶 + إيراد",
-    logout: "تسجيل الخروج",
-    loggingOut: "جارٍ تسجيل الخروج…",
-    logoutErr: "تعذّر إتمام تسجيل الخروج: ",
-    confirmTitle: "تأكيد",
-    cancel: "إلغاء",
-    deleteBtn: "حذف",
-    saveBtn: "حفظ",
-    profileTitle: "ملفي الشخصي وحساب Google",
-    connectedGoogle: "متصل بحساب Google",
-    resetGoogle: "↻ استعادة من Google",
-    profileSaved: "تم حفظ الملف الشخصي واللغة.",
-    vehicleSaved: "تم حفظ المركبة بنجاح.",
-    vehicleDeleted: "تم حذف المركبة.",
-    fuelSaved: "تم حفظ الإدخال.",
-    fuelDeleted: "تم حذف الإدخال.",
-    expenseSaved: "تم حفظ المصروف.",
-    expenseDeleted: "تم حذف المصروف.",
-    benefitSaved: "تم حفظ الإيراد.",
-    benefitDeleted: "تم حذف الإيراد.",
-    confirmDelFuel: "هل تريد حذف هذا السجل؟",
-    confirmDelExpense: "هل تريد حذف هذا المصروف؟",
-    confirmDelVehicle: "هل تريد بالتأكيد حذف هذه المركبة وجميع سجلاتها؟",
-    confirmDelBenefit: "هل تريد حذف هذا الإيراد؟"
-  },
-  ES: {
-    authTitle: "AutoTrack",
-    authSubtitle: "Inicia sesión para consultar y sincronizar los datos de tu vehículo.",
-    langLabel: "Idioma",
-    googleLogin: "Continuar con Google",
-    loginRedirect: "Redirigiendo a Google…",
-    loginOpening: "Abriendo inicio de sesión de Google…",
-    loginStatus: "Inicio de sesión seguro — datos privados",
-    loginInit: "Inicializando. Inténtalo de nuevo en unos segundos.",
-    exportLocal: "Exportar datos locales (si están disponibles)",
-    savedOk: "☁️ Datos guardados",
-    saving: "☁️ Guardando…",
-    saveErr: "⚠️ Error al guardar",
-    saveErrToast: "Error al guardar los datos.",
-    unsavedBanner: "⚠️ Cambios locales pendientes. Exporta <strong>autotrack_data.json</strong> para conservar una copia.",
-    downloadJson: "Descargar JSON",
-    noVehicle: "Sin vehículo",
-    addVehicle: "+ Vehículo",
-    emptyTitle: "Ningún vehículo seleccionado",
-    emptyDesc: "Añade tu vehículo (marca, modelo, año, potencia, energía, divisa) para empezar.",
-    emptyAdd: "+ Añadir vehículo",
-    tabQuick: "⚡ Acceso rápido",
-    tabDashboard: "📊 Panel",
-    tabFuel: "📈 Combustible y consumo",
-    tabExpenses: "📉 Gastos",
-    tabBenefits: "💶 Beneficios",
-    tabVehicles: "🚘 Vehículos",
-    quickFuel: "⛽ + Repostar/Carga",
-    quickExpense: "🧾 + Gasto",
-    quickBenefit: "💶 + Beneficio",
-    logout: "Cerrar sesión",
-    loggingOut: "Cerrando sesión…",
-    logoutErr: "No se pudo cerrar la sesión: ",
-    confirmTitle: "Confirmación",
-    cancel: "Cancelar",
-    deleteBtn: "Eliminar",
-    saveBtn: "Guardar",
-    profileTitle: "Mi Perfil y Cuenta de Google",
-    connectedGoogle: "Conectado con Google",
-    resetGoogle: "↻ Restablecer desde Google",
-    profileSaved: "Perfil e idioma guardados.",
-    vehicleSaved: "Vehículo guardado correctamente.",
-    vehicleDeleted: "Vehículo eliminado.",
-    fuelSaved: "Registro guardado.",
-    fuelDeleted: "Registro eliminado.",
-    expenseSaved: "Gasto guardado.",
-    expenseDeleted: "Gasto eliminado.",
-    benefitSaved: "Beneficio guardado.",
-    benefitDeleted: "Beneficio eliminado.",
-    confirmDelFuel: "¿Eliminar este registro?",
-    confirmDelExpense: "¿Eliminar este gasto?",
-    confirmDelVehicle: "¿Seguro que deseas eliminar este vehículo y todo su historial?",
-    confirmDelBenefit: "¿Eliminar este beneficio?"
-  },
-  ZH: {
-    authTitle: "AutoTrack",
-    authSubtitle: "登录以查看和同步您的车辆跟踪数据。",
-    langLabel: "语言",
-    googleLogin: "使用 Google 继续",
-    loginRedirect: "正在跳转到 Google…",
-    loginOpening: "正在打开 Google 登录…",
-    loginStatus: "安全登录 — 私人数据",
-    loginInit: "正在初始化，请稍后再试。",
-    exportLocal: "导出本地数据（如有）",
-    savedOk: "☁️ 数据已保存",
-    saving: "☁️ 正在保存…",
-    saveErr: "⚠️ 保存失败",
-    saveErrToast: "保存数据时出错。",
-    unsavedBanner: "⚠️ 存在本地更改。请导出 <strong>autotrack_data.json</strong> 备份。",
-    downloadJson: "下载 JSON",
-    noVehicle: "无车辆",
-    addVehicle: "+ 车辆",
-    emptyTitle: "未选择车辆",
-    emptyDesc: "请添加车辆（品牌、型号、年份、功率、能源、货币）以开始记录。",
-    emptyAdd: "+ 添加车辆",
-    tabQuick: "⚡ 快捷访问",
-    tabDashboard: "📊 仪表盘",
-    tabFuel: "📈 能源与能耗",
-    tabExpenses: "📉 支出",
-    tabBenefits: "💶 收益",
-    tabVehicles: "🚘 车辆",
-    quickFuel: "⛽ + 加油/充电",
-    quickExpense: "🧾 + 支出",
-    quickBenefit: "💶 + 收益",
-    logout: "退出登录",
-    loggingOut: "正在退出…",
-    logoutErr: "无法完成退出登录：",
-    confirmTitle: "确认",
-    cancel: "取消",
-    deleteBtn: "删除",
-    saveBtn: "保存",
-    profileTitle: "我的个人资料与 Google 账号",
-    connectedGoogle: "已连接 Google",
-    resetGoogle: "↻ 从 Google 恢复",
-    profileSaved: "个人资料和语言已保存。",
-    vehicleSaved: "车辆已保存。",
-    vehicleDeleted: "车辆已删除。",
-    fuelSaved: "记录已保存。",
-    fuelDeleted: "记录已删除。",
-    expenseSaved: "支出已保存。",
-    expenseDeleted: "支出已删除。",
-    benefitSaved: "收益已保存。",
-    benefitDeleted: "收益已删除。",
-    confirmDelFuel: "确定删除此记录？",
-    confirmDelExpense: "确定删除此支出？",
-    confirmDelVehicle: "确定要删除此车辆及全部历史记录吗？",
-    confirmDelBenefit: "确定删除此收益记录？"
-  },
-  IT: {
-    authTitle: "AutoTrack",
-    authSubtitle: "Accedi per ritrovare e sincronizzare i dati del tuo veicolo.",
-    langLabel: "Lingua",
-    googleLogin: "Continua con Google",
-    loginRedirect: "Reindirizzamento a Google…",
-    loginOpening: "Apertura accesso Google…",
-    loginStatus: "Accesso sicuro — dati privati",
-    loginInit: "Inizializzazione in corso. Riprova tra qualche secondo.",
-    exportLocal: "Esporta dati locali (se disponibili)",
-    savedOk: "☁️ Dati salvati",
-    saving: "☁️ Salvataggio…",
-    saveErr: "⚠️ Errore salvataggio",
-    saveErrToast: "Errore durante il salvataggio dei dati.",
-    unsavedBanner: "⚠️ Modifiche locali non esportate. Esporta <strong>autotrack_data.json</strong> per un backup locale.",
-    downloadJson: "Scarica JSON",
-    noVehicle: "Nessun veicolo",
-    addVehicle: "+ Veicolo",
-    emptyTitle: "Nessun veicolo selezionato",
-    emptyDesc: "Aggiungi il tuo veicolo (marca, modello, anno, potenza, energia, valuta) per iniziare.",
-    emptyAdd: "+ Aggiungi veicolo",
-    tabQuick: "⚡ Accesso Rapido",
-    tabDashboard: "📊 Dashboard",
-    tabFuel: "📈 Rifornimenti & Consumi",
-    tabExpenses: "📉 Spese",
-    tabBenefits: "💶 Entrate",
-    tabVehicles: "🚘 Veicoli",
-    quickFuel: "⛽ + Rifornimento",
-    quickExpense: "🧾 + Spesa",
-    quickBenefit: "💶 + Entrata",
-    logout: "Disconnetti",
-    loggingOut: "Disconnessione…",
-    logoutErr: "Impossibile completare la disconnessione: ",
-    confirmTitle: "Conferma",
-    cancel: "Annulla",
-    deleteBtn: "Elimina",
-    saveBtn: "Salva",
-    profileTitle: "Il Mio Profilo & Account Google",
-    connectedGoogle: "Connesso con Google",
-    resetGoogle: "↻ Ripristina da Google",
-    profileSaved: "Profilo e lingua salvati.",
-    vehicleSaved: "Veicolo salvato.",
-    vehicleDeleted: "Veicolo eliminato.",
-    fuelSaved: "Registrazione salvata.",
-    fuelDeleted: "Registrazione eliminata.",
-    expenseSaved: "Spesa salvata.",
-    expenseDeleted: "Spesa eliminata.",
-    benefitSaved: "Entrata salvata.",
-    benefitDeleted: "Entrata eliminata.",
-    confirmDelFuel: "Eliminare questa registrazione?",
-    confirmDelExpense: "Eliminare questa spesa?",
-    confirmDelVehicle: "Vuoi davvero eliminare questo veicolo e tutta la sua cronologia?",
-    confirmDelBenefit: "Eliminare questa entrata?"
   }
 };
 
@@ -1222,7 +855,8 @@ function applyLanguageToDOM() {
   setText("headerAddVehicleBtn", t("addVehicle"));
   const statusEl = document.getElementById("oneDriveHeaderStatus");
   if (statusEl) {
-    if (statusEl.dataset.state === "saving") statusEl.textContent = t("saving");
+    if (!currentUser) statusEl.textContent = t("demoModeBadge");
+    else if (statusEl.dataset.state === "saving") statusEl.textContent = t("saving");
     else if (statusEl.dataset.state === "error") statusEl.textContent = t("saveErr");
     else statusEl.textContent = t("savedOk");
   }
@@ -1342,7 +976,40 @@ function getConsumptionUnit(v, overrideEnergyType = null) {
   return `${getEnergyUnit(v, overrideEnergyType)}/100`;
 }
 
-// ==================== DONNÉES PAR DÉFAUT ====================
+// ==================== DONNÉES PAR DÉFAUT & VÉHICULE DÉMO ====================
+function createDemoVehicleTemplate() {
+  return {
+    id: "v_kimberly",
+    ownerId: null,
+    isDemo: true,
+    isUserCreated: false,
+    name: "Kimberly (Démo)",
+    currency: "EUR",
+    brand: "Toyota",
+    model: "Auris 2",
+    version: "Technoline",
+    fuelType: "Hybride Essence",
+    year: 2018,
+    power: "5 CV",
+    purchasePrice: 18633.0,
+    purchaseDate: "2024-02-17",
+    initialOdometer: 75845,
+    nextInspectionDate: "2027-12-30",
+    depreciationFixedPerDay: 2.97126,
+    depreciationPerKmDay: 0.090022,
+    fuelLogs: [
+      { "date": "2024-02-17", "odometer": 75845, "cost": 0.0, "liters": 0.0, "pricePerLiter": 0.0, "distance": 0, "fuelType": "SP95 E10" },
+      { "date": "2024-02-24", "odometer": 75932, "cost": 71.56, "liters": 39.34, "pricePerLiter": 1.819, "distance": 87, "fuelType": "SP95 E10" },
+      { "date": "2026-11-20", "odometer": 127047, "cost": 60.32, "liters": 31.27, "pricePerLiter": 1.929, "distance": 519, "fuelType": "SP95 E12" }
+    ],
+    expenses: [
+      { "date": "2024-02-17", "odometer": 75845, "cost": 842.52, "info": "Assurance Tout Risque 2024" },
+      { "date": "2025-12-29", "odometer": 101085, "cost": 569.0, "info": "Entretien/Vidange chez Toyota (90000 km)" },
+      { "date": "2026-08-27", "odometer": 120288, "cost": 499.0, "info": "Entretien/Vidange chez Toyota (120000 km)" }
+    ]
+  };
+}
+
 const DEFAULT_DB = {
   version: 2,
   defaultLanguage: "FR",
@@ -1350,48 +1017,116 @@ const DEFAULT_DB = {
   lastUpdated: "2026-11-21T19:00:00Z",
   users: [],
   defaultVehicleByUser: {},
-  vehicles: [
-    {
-      id: "v_kimberly",
-      ownerId: null,
-      isDemo: true,
-      isUserCreated: false,
-      name: "Kimberly",
-      currency: "EUR",
-      brand: "Toyota",
-      model: "Auris 2",
-      version: "Technoline",
-      fuelType: "Hybride Essence",
-      year: 2018,
-      power: "5 CV",
-      purchasePrice: 18633.0,
-      purchaseDate: "2024-02-17",
-      initialOdometer: 75845,
-      nextInspectionDate: "2027-12-30",
-      depreciationFixedPerDay: 2.97126,
-      depreciationPerKmDay: 0.090022,
-      fuelLogs: [
-        { "date": "2024-02-17", "odometer": 75845, "cost": 0.0, "liters": 0.0, "pricePerLiter": 0.0, "distance": 0, "fuelType": "SP95 E10" },
-        { "date": "2024-02-24", "odometer": 75932, "cost": 71.56, "liters": 39.34, "pricePerLiter": 1.819, "distance": 87, "fuelType": "SP95 E10" },
-        { "date": "2026-11-20", "odometer": 127047, "cost": 60.32, "liters": 31.27, "pricePerLiter": 1.929, "distance": 519, "fuelType": "SP95 E12" }
-      ],
-      expenses: [
-        { "date": "2024-02-17", "odometer": 75845, "cost": 842.52, "info": "Assurance Tout Risque 2024" },
-        { "date": "2025-12-29", "odometer": 101085, "cost": 569.0, "info": "Entretien/Vidange chez Toyota (90000 km)" },
-        { "date": "2026-08-27", "odometer": 120288, "cost": 499.0, "info": "Entretien/Vidange chez Toyota (120000 km)" }
-      ]
-    }
-  ]
+  vehicles: [createDemoVehicleTemplate()]
 };
 
 const STORAGE_KEY = "autotrack_db_v2";
 const SESSION_KEY = "autotrack_session_v2";
 const DEFAULT_VEHICLE_PREFIX = "autotrack_default_vehicle_";
+const PENDING_CREATE_VEHICLE_KEY = "autotrack_pending_create_vehicle";
 
 let db = loadDB();
 let currentUser = null;
 let activeVehicleId = null;
 let charts = {};
+
+function ensureDemoVehiclePresent() {
+  if (!Array.isArray(db.vehicles)) db.vehicles = [];
+  const demoIdx = db.vehicles.findIndex(v => v && (v.id === "v_kimberly" || v.isDemo === true));
+  if (demoIdx === -1) {
+    db.vehicles.unshift(createDemoVehicleTemplate());
+  } else {
+    db.vehicles[demoIdx].isDemo = true;
+    db.vehicles[demoIdx].isUserCreated = false;
+    db.vehicles[demoIdx].ownerId = null;
+  }
+}
+
+function isReadOnlyMode() {
+  if (!currentUser) return true;
+  const v = getActiveVehicle();
+  return Boolean(v && v.isDemo === true);
+}
+
+function promptGoogleSignInForVehicleCreation() {
+  try { sessionStorage.setItem(PENDING_CREATE_VEHICLE_KEY, "1"); } catch {}
+  document.getElementById("appView")?.classList.add("hidden");
+  document.getElementById("authWrapper")?.classList.remove("hidden");
+  applyLanguageToDOM();
+  const status = document.getElementById("supabaseLoginStatus");
+  if (status) {
+    status.textContent = "Connectez-vous avec Google pour créer et enregistrer votre véhicule.";
+  }
+}
+
+function returnToDemoMode() {
+  try { sessionStorage.removeItem(PENDING_CREATE_VEHICLE_KEY); } catch {}
+  document.getElementById("authWrapper")?.classList.add("hidden");
+  document.getElementById("appView")?.classList.remove("hidden");
+  initDemoGuestMode();
+}
+
+function handleHeaderAccountClick() {
+  if (currentUser) {
+    openProfileModal();
+  } else {
+    document.getElementById("appView")?.classList.add("hidden");
+    document.getElementById("authWrapper")?.classList.remove("hidden");
+    applyLanguageToDOM();
+  }
+}
+
+function updateReadOnlyUIState() {
+  const guest = !currentUser;
+  const activeVeh = getActiveVehicle();
+  const demoReadOnly = guest || Boolean(activeVeh && activeVeh.isDemo === true);
+
+  const banner = document.getElementById("demoReadOnlyBanner");
+  if (banner) {
+    if (guest) {
+      banner.classList.remove("hidden");
+      banner.innerHTML = `<span>👁️ <strong>Mode démo (visu uniquement)</strong> : consultez le véhicule Démo. Connectez-vous avec Google pour créer votre véhicule.</span>
+        <button type="button" onclick="openVehicleModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer">
+          Se connecter & créer un véhicule
+        </button>`;
+    } else if (activeVeh && activeVeh.isDemo === true) {
+      banner.classList.remove("hidden");
+      banner.innerHTML = `<span>👁️ <strong>Véhicule Démo (lecture seule)</strong> : vous consultez la démo tout en gardant accès à vos véhicules.</span>
+        <button type="button" onclick="openVehicleModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer">
+          + Nouveau véhicule
+        </button>`;
+    } else {
+      banner.classList.add("hidden");
+    }
+  }
+
+  const actionsBar = document.getElementById("quickActionsBar");
+  if (actionsBar) actionsBar.classList.toggle("hidden", demoReadOnly);
+
+  ["fuelAddBtn", "expAddBtn", "benAddBtn"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle("hidden", demoReadOnly);
+  });
+
+  const shortNameEl = document.getElementById("headerProfileShortName");
+  if (shortNameEl && !currentUser) {
+    shortNameEl.textContent = "Connexion Google";
+  }
+
+  setSyncStatusBadge(currentUser ? (document.getElementById("oneDriveHeaderStatus")?.dataset.state || "ok") : "demo");
+}
+
+function initDemoGuestMode() {
+  currentUser = null;
+  ensureDemoVehiclePresent();
+  const demoVeh = db.vehicles.find(v => v.isDemo === true) || db.vehicles[0];
+  activeVehicleId = demoVeh ? demoVeh.id : null;
+  document.getElementById("authWrapper")?.classList.add("hidden");
+  document.getElementById("appView")?.classList.remove("hidden");
+  populateVehicleSelector();
+  applyLanguageToDOM();
+  refreshAllViews();
+}
 
 function loadDB() {
   try {
@@ -1416,6 +1151,7 @@ function loadDB() {
 }
 
 function saveDB(markDirty = true) {
+  if (!currentUser) return;
   db.lastUpdated = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   if (markDirty) {
@@ -1450,27 +1186,30 @@ function setPreferredVehicleId(userId, vehicleId) {
 }
 
 function resolveDefaultVehicleId(userId) {
+  ensureDemoVehiclePresent();
   const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
   if (!vehicles.length) return null;
 
-  const userVehicles = vehicles.filter(v => !userId || v.ownerId === userId);
-  const pool = userVehicles.length ? userVehicles : vehicles;
+  if (!userId) {
+    const demo = vehicles.find(v => v.isDemo === true);
+    return demo ? demo.id : vehicles[0].id;
+  }
 
-  const customVehicles = pool.filter(v => v.isUserCreated === true || v.isDemo === false);
+  const userVehicles = vehicles.filter(v => v.ownerId === userId && v.isDemo !== true);
   const preferredId = getPreferredVehicleId(userId);
 
   if (preferredId) {
-    const preferredMatch = customVehicles.find(v => String(v.id) === String(preferredId))
-      || pool.find(v => String(v.id) === String(preferredId) && v.isDemo !== true);
+    const preferredMatch = userVehicles.find(v => String(v.id) === String(preferredId));
     if (preferredMatch) return preferredMatch.id;
   }
 
-  if (customVehicles.length > 0) {
-    const latestCustom = [...customVehicles].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+  if (userVehicles.length > 0) {
+    const latestCustom = [...userVehicles].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
     return latestCustom.id;
   }
 
-  return pool[0].id;
+  const demo = vehicles.find(v => v.isDemo === true);
+  return demo ? demo.id : vehicles[0].id;
 }
 
 function showToast(message, type = "info") {
@@ -1518,12 +1257,18 @@ function initAppAfterLogin() {
   if (!Array.isArray(db.vehicles)) db.vehicles = [];
   if (!Array.isArray(db.users)) db.users = [];
   if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+  ensureDemoVehiclePresent();
   db.vehicles.forEach(v => {
     if (!v) return;
-    if (currentUser) v.ownerId = currentUser.id;
+    if (v.isDemo === true || v.id === "v_kimberly") {
+      v.isDemo = true;
+      v.isUserCreated = false;
+      v.ownerId = null;
+    } else if (currentUser && !v.ownerId) {
+      v.ownerId = currentUser.id;
+      v.isUserCreated = true;
+    }
     if (!v.currency) v.currency = db.defaultCurrency || "EUR";
-    if (v.isUserCreated === undefined) v.isUserCreated = v.id !== "v_kimberly";
-    if (v.isDemo === undefined) v.isDemo = !v.isUserCreated;
   });
 
   activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
@@ -1533,16 +1278,34 @@ function initAppAfterLogin() {
   try { refreshAllViews(); } catch (e) { console.error("AutoTrack refreshAllViews", e); }
   try { renderQuickAccess(); } catch (e) { console.error("AutoTrack renderQuickAccess", e); }
   try { renderVehiclesTab(); } catch (e) { console.error("AutoTrack renderVehiclesTab", e); }
+
+  let shouldOpenCreate = false;
+  try {
+    shouldOpenCreate = sessionStorage.getItem(PENDING_CREATE_VEHICLE_KEY) === "1";
+    if (shouldOpenCreate) sessionStorage.removeItem(PENDING_CREATE_VEHICLE_KEY);
+  } catch {}
+  if (shouldOpenCreate && currentUser) {
+    openVehicleModal("");
+  }
 }
 
 function getActiveVehicle() {
-  return db.vehicles.find(v => v.id === activeVehicleId) || db.vehicles[0] || null;
+  ensureDemoVehiclePresent();
+  if (!currentUser) {
+    return db.vehicles.find(v => v.isDemo === true) || db.vehicles[0] || null;
+  }
+  const visibleVehicles = db.vehicles.filter(v => v.isDemo === true || v.ownerId === currentUser.id);
+  return visibleVehicles.find(v => v.id === activeVehicleId) || visibleVehicles[0] || null;
 }
 
 function populateVehicleSelector() {
   const sel = document.getElementById("vehicleSelect");
   if (!sel) return;
-  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
+  ensureDemoVehiclePresent();
+  const vehicles = currentUser
+    ? db.vehicles.filter(v => v && (v.isDemo === true || v.ownerId === currentUser.id))
+    : db.vehicles.filter(v => v && v.isDemo === true);
+
   sel.replaceChildren();
   if (vehicles.length === 0) {
     const option = document.createElement("option");
@@ -1556,7 +1319,8 @@ function populateVehicleSelector() {
   vehicles.forEach(v => {
     const option = document.createElement("option");
     option.value = String(v.id ?? "");
-    option.textContent = "🚘 " + String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule");
+    const labelName = String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule");
+    option.textContent = v.isDemo ? `👁️ ${labelName}` : `🚘 ${labelName}`;
     sel.appendChild(option);
   });
   const activeId = String(activeVehicleId ?? "");
@@ -1569,7 +1333,8 @@ function populateVehicleSelector() {
 
 document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
   activeVehicleId = e.target.value;
-  if (currentUser?.id && activeVehicleId) {
+  const chosen = db.vehicles.find(v => String(v.id) === String(activeVehicleId));
+  if (currentUser?.id && activeVehicleId && chosen && !chosen.isDemo) {
     setPreferredVehicleId(currentUser.id, activeVehicleId);
     saveDB(true);
   }
@@ -1858,12 +1623,14 @@ function refreshAllViews() {
 
   if (!v) {
     emptyState.classList.remove("hidden");
+    updateReadOnlyUIState();
     return;
   }
 
   emptyState.classList.add("hidden");
   applyLanguageToDOM();
   applyCurrencyAndUnitLabelsToDOM(v);
+  updateReadOnlyUIState();
 
   const m = computeVehicleMetrics(v);
   const unit = getEnergyUnit(v);
@@ -2134,6 +1901,7 @@ function renderCharts(v, m) {
 }
 
 function openFuelModal(index = -1) {
+  if (isReadOnlyMode()) return;
   const v = getActiveVehicle();
   if (!v) return;
   const elecDefault = isElectricVehicle(v);
@@ -2208,6 +1976,7 @@ function updateFuelLiveCalc() {
 
 document.getElementById("fuelForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (isReadOnlyMode()) return;
   const v = getActiveVehicle();
   const idx = parseInt(document.getElementById("fuelEditIndex").value, 10);
   const date = document.getElementById("fDate").value;
@@ -2230,6 +1999,7 @@ document.getElementById("fuelForm")?.addEventListener("submit", (e) => {
 });
 
 async function deleteFuel(idx) {
+  if (isReadOnlyMode()) return;
   const ok = await showConfirmDialog(t("confirmDelFuel"));
   if (!ok) return;
   const v = getActiveVehicle();
@@ -2402,7 +2172,7 @@ function renderFuelDetailsTable() {
   if (!v) return;
   const m = computeVehicleMetrics(v);
   const sym = getCurrencySymbol(v);
-  const unit = getEnergyUnit(v);
+  const readOnly = isReadOnlyMode();
   const q = (document.getElementById("fuelDetailSearch").value || "").toLowerCase();
   const sortMode = document.getElementById("fuelDetailSort").value;
 
@@ -2426,6 +2196,10 @@ function renderFuelDetailsTable() {
     const origIdx = v.fuelLogs.findIndex(x => x.date === r.date && x.odometer === r.odometer && x.cost === r.cost);
     const pricePerKm = (r.dist > 0 && r.cost > 0) ? (r.cost / r.dist) : null;
     const rowUnit = getEnergyUnit(v, r.fuelType);
+    const actionsHtml = readOnly
+      ? `<span class="text-xs text-slate-400">—</span>`
+      : `<button type="button" onclick="openFuelModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
+         <button type="button" onclick="deleteFuel(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>`;
     return `
       <tr class="hover:bg-slate-50 whitespace-nowrap">
         <td class="py-2.5 px-3 font-semibold">${r.date}</td>
@@ -2438,10 +2212,7 @@ function renderFuelDetailsTable() {
         <td class="py-2.5 px-3 font-bold text-blue-600">${r.conso100 !== null ? fmtNum(r.conso100, 2) + " " + rowUnit : "—"}</td>
         <td class="py-2.5 px-3 font-semibold">${pricePerKm !== null ? fmtEur(pricePerKm, 2, v) : "—"}</td>
         <td class="py-2.5 px-3">${r.cost100 !== null ? fmtEur(r.cost100, 2, v) : "—"}</td>
-        <td class="py-2.5 px-3">
-          <button type="button" onclick="openFuelModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
-          <button type="button" onclick="deleteFuel(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>
-        </td>
+        <td class="py-2.5 px-3">${actionsHtml}</td>
       </tr>
     `;
   }).join("");
@@ -2451,6 +2222,7 @@ function renderExpenseTable() {
   const v = getActiveVehicle();
   if (!v) return;
   const m = computeVehicleMetrics(v);
+  const readOnly = isReadOnlyMode();
   const q = (document.getElementById("expenseSearch").value || "").toLowerCase();
 
   const rows = [...m.enrichedExp].reverse().filter(r => {
@@ -2461,6 +2233,10 @@ function renderExpenseTable() {
   document.getElementById("expenseTableBody").innerHTML = rows.map(r => {
     const origIdx = v.expenses.findIndex(x => x.date === r.date && x.info === r.info && x.cost === r.cost);
     const cat = r.category || categorizeExpense(r.info);
+    const actionsHtml = readOnly
+      ? `<span class="text-xs text-slate-400">—</span>`
+      : `<button type="button" onclick="openExpenseModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
+         <button type="button" onclick="deleteExpense(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>`;
     return `
       <tr class="hover:bg-slate-50">
         <td class="py-2.5 px-3 font-semibold whitespace-nowrap">${r.date}</td>
@@ -2469,16 +2245,14 @@ function renderExpenseTable() {
         <td class="py-2.5 px-3 whitespace-nowrap">${r.distSincePurchase > 0 ? "+" + fmtNum(r.distSincePurchase, 0) + " km" : "0 km"}</td>
         <td class="py-2.5 px-3 font-semibold whitespace-nowrap">${fmtEur(r.cost, 2, v)}</td>
         <td class="py-2.5 px-3 min-w-[200px]">${r.info}</td>
-        <td class="py-2.5 px-3 whitespace-nowrap">
-          <button type="button" onclick="openExpenseModal(${origIdx})" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs cursor-pointer">✏️</button>
-          <button type="button" onclick="deleteExpense(${origIdx})" class="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs cursor-pointer">🗑️</button>
-        </td>
+        <td class="py-2.5 px-3 whitespace-nowrap">${actionsHtml}</td>
       </tr>
     `;
   }).join("");
 }
 
 function openExpenseModal(index = -1) {
+  if (isReadOnlyMode()) return;
   const v = getActiveVehicle();
   if (!v) return;
   document.getElementById("expenseEditIndex").value = index;
@@ -2506,6 +2280,7 @@ function openExpenseModal(index = -1) {
 
 document.getElementById("expenseForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (isReadOnlyMode()) return;
   const v = getActiveVehicle();
   const idx = parseInt(document.getElementById("expenseEditIndex").value, 10);
   const info = document.getElementById("eInfo").value.trim();
@@ -2529,6 +2304,7 @@ document.getElementById("expenseForm")?.addEventListener("submit", (e) => {
 });
 
 async function deleteExpense(idx) {
+  if (isReadOnlyMode()) return;
   const ok = await showConfirmDialog(t("confirmDelExpense"));
   if (!ok) return;
   const v = getActiveVehicle();
@@ -2676,17 +2452,28 @@ function renderQuickAccess() {
 }
 
 function renderVehiclesTab() {
+  ensureDemoVehiclePresent();
+  const visibleVehicles = currentUser
+    ? db.vehicles.filter(v => v.isDemo === true || v.ownerId === currentUser.id)
+    : db.vehicles.filter(v => v.isDemo === true);
+
   const grid = document.getElementById("vehiclesListGrid");
-  grid.innerHTML = db.vehicles.map(v => {
+  grid.innerHTML = visibleVehicles.map(v => {
     const m = computeVehicleMetrics(v);
     const consoUnit = getConsumptionUnit(v);
     const vCurr = getVehicleCurrencyCode(v);
     const isCurrent = v.id === activeVehicleId;
+    const isDemoVeh = v.isDemo === true;
     const inspStr = v.nextInspectionDate ? new Date(v.nextInspectionDate + "T12:00:00").toLocaleDateString("fr-FR") : "Non renseignée";
+    const manageButtons = (currentUser && !isDemoVeh)
+      ? `<button type="button" onclick="openVehicleModal('${v.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer">✏️ Modifier</button>
+         <button type="button" onclick="deleteVehicle('${v.id}')" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold cursor-pointer">${t("deleteBtn")}</button>`
+      : `<span class="inline-flex items-center px-3 py-1.5 rounded-xl bg-sky-100 text-sky-800 text-xs font-semibold">👁️ Lecture seule (Démo)</span>`;
+
     return `
       <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 via-white to-emerald-50 border ${isCurrent ? "border-blue-600" : "border-slate-200"} shadow-xs">
         <div class="flex items-center justify-between gap-2 mb-2">
-          <h4 class="text-base font-bold text-slate-900">🚘 ${v.name} (${v.brand} ${v.model}) • <span class="text-blue-700">${vCurr}</span></h4>
+          <h4 class="text-base font-bold text-slate-900">${isDemoVeh ? "👁️" : "🚘"} ${v.name} (${v.brand} ${v.model}) • <span class="text-blue-700">${vCurr}</span></h4>
         </div>
         <p class="text-xs text-slate-500 mb-3">
           Version : <strong>${v.version || "Technoline"}</strong> • ${v.registration ? `Immatriculation : <strong>${v.registration}</strong> • ` : ""}Année : <strong>${v.year}</strong> • Puissance : <strong>${v.power}</strong> • Carburant : <strong>${v.fuelType}</strong> • Devise : <strong>${vCurr}</strong> • Prochain CT : <strong>${inspStr}</strong>
@@ -2701,8 +2488,7 @@ function renderVehiclesTab() {
         </div>
         <div class="flex gap-2 flex-wrap">
           <button type="button" onclick="selectVehicleFromCard('${v.id}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer">Afficher le suivi</button>
-          <button type="button" onclick="openVehicleModal('${v.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer">✏️ Modifier</button>
-          <button type="button" onclick="deleteVehicle('${v.id}')" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold cursor-pointer">${t("deleteBtn")}</button>
+          ${manageButtons}
         </div>
       </div>
     `;
@@ -2711,7 +2497,8 @@ function renderVehiclesTab() {
 
 function selectVehicleFromCard(id) {
   activeVehicleId = id;
-  if (currentUser?.id && activeVehicleId) {
+  const chosen = db.vehicles.find(v => String(v.id) === String(id));
+  if (currentUser?.id && activeVehicleId && chosen && !chosen.isDemo) {
     setPreferredVehicleId(currentUser.id, activeVehicleId);
     saveDB(true);
   }
@@ -2721,9 +2508,14 @@ function selectVehicleFromCard(id) {
 }
 
 function openVehicleModal(vehicleId = "") {
-  document.getElementById("vEditId").value = vehicleId;
+  if (!currentUser) {
+    promptGoogleSignInForVehicleCreation();
+    return;
+  }
   if (vehicleId) {
     const v = db.vehicles.find(x => x.id === vehicleId);
+    if (!v || v.isDemo === true) return;
+    document.getElementById("vEditId").value = vehicleId;
     document.getElementById("vehicleModalTitle").textContent = "✏️ Modifier le véhicule";
     document.getElementById("vName").value = v.name;
     populateVehicleCurrencySelect(v.currency || db.defaultCurrency || "EUR");
@@ -2739,6 +2531,7 @@ function openVehicleModal(vehicleId = "") {
     document.getElementById("vInitialOdo").value = v.initialOdometer;
     document.getElementById("vNextInspectionDate").value = v.nextInspectionDate || "";
   } else {
+    document.getElementById("vEditId").value = "";
     document.getElementById("vehicleModalTitle").textContent = "🚘 Ajouter un véhicule";
     document.getElementById("vName").value = "";
     populateVehicleCurrencySelect(db.defaultCurrency || "EUR");
@@ -2764,12 +2557,16 @@ document.getElementById("vCurrency")?.addEventListener("change", (e) => {
 
 document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (!currentUser) {
+    promptGoogleSignInForVehicleCreation();
+    return;
+  }
   const editId = document.getElementById("vEditId").value;
   const chosenCurrency = (document.getElementById("vCurrency")?.value || "EUR").toUpperCase();
   const payload = {
     name: document.getElementById("vName").value.trim(),
     currency: chosenCurrency,
-    ownerId: currentUser ? currentUser.id : null,
+    ownerId: currentUser.id,
     registration: document.getElementById("vRegistration").value.trim().toUpperCase(),
     brand: document.getElementById("vBrand").value.trim(),
     model: document.getElementById("vModel").value.trim(),
@@ -2784,11 +2581,10 @@ document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
   };
 
   if (editId) {
-    const v = db.vehicles.find(x => x.id === editId);
+    const v = db.vehicles.find(x => x.id === editId && !x.isDemo);
+    if (!v) return;
     Object.assign(v, payload, { isDemo: false, isUserCreated: true });
-    if (currentUser?.id) {
-      setPreferredVehicleId(currentUser.id, v.id);
-    }
+    setPreferredVehicleId(currentUser.id, v.id);
   } else {
     const newId = "v_" + Date.now();
     db.vehicles.push({
@@ -2811,9 +2607,7 @@ document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
       expenses: []
     });
     activeVehicleId = newId;
-    if (currentUser?.id) {
-      setPreferredVehicleId(currentUser.id, newId);
-    }
+    setPreferredVehicleId(currentUser.id, newId);
   }
   saveDB(true);
   closeModal("vehicleModal");
@@ -2823,14 +2617,17 @@ document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
 });
 
 async function deleteVehicle(id) {
+  if (!currentUser) return;
+  const target = db.vehicles.find(v => v.id === id);
+  if (!target || target.isDemo === true) return;
   const ok = await showConfirmDialog(t("confirmDelVehicle"));
   if (!ok) return;
   db.vehicles = db.vehicles.filter(v => v.id !== id);
-  if (currentUser?.id && getPreferredVehicleId(currentUser.id) === id) {
+  if (getPreferredVehicleId(currentUser.id) === id) {
     delete db.defaultVehicleByUser[currentUser.id];
     try { localStorage.removeItem(DEFAULT_VEHICLE_PREFIX + currentUser.id); } catch {}
   }
-  activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
+  activeVehicleId = resolveDefaultVehicleId(currentUser.id);
   saveDB(true);
   populateVehicleSelector();
   refreshAllViews();
@@ -2858,6 +2655,7 @@ function exportBackupJSON() {
 function renderBenefitsTab() {
   const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = [];
   const sym = getCurrencySymbol(v);
+  const readOnly = isReadOnlyMode();
   const list = [...v.benefits].sort((a, b) => a.date.localeCompare(b.date));
   const yearTotals = {};
   list.forEach(x => { const y = (x.date || '').slice(0, 4); if (y) yearTotals[y] = (yearTotals[y] || 0) + Number(x.amount || 0); });
@@ -2941,7 +2739,12 @@ function renderBenefitsTab() {
     </div>
   `;
 
-  document.getElementById('benefitTableBody').innerHTML = list.length ? list.map((x) => `<tr><td class="py-3 px-3">${new Date(x.date + 'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="py-3 px-3">${fmtEur(x.amount, 2, v)}</td><td class="py-3 px-3"><button onclick="deleteBenefit(${v.benefits.indexOf(x)})" class="text-red-600 font-semibold cursor-pointer">${t("deleteBtn")}</button></td></tr>`).join('') : `<tr><td colspan="3" class="py-4 text-center text-slate-400">Aucune rentrée d'argent enregistrée.</td></tr>`;
+  document.getElementById('benefitTableBody').innerHTML = list.length ? list.map((x) => {
+    const actionCell = readOnly
+      ? `<span class="text-xs text-slate-400">—</span>`
+      : `<button onclick="deleteBenefit(${v.benefits.indexOf(x)})" class="text-red-600 font-semibold cursor-pointer">${t("deleteBtn")}</button>`;
+    return `<tr><td class="py-3 px-3">${new Date(x.date + 'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="py-3 px-3">${fmtEur(x.amount, 2, v)}</td><td class="py-3 px-3">${actionCell}</td></tr>`;
+  }).join('') : `<tr><td colspan="3" class="py-4 text-center text-slate-400">Aucune rentrée d'argent enregistrée.</td></tr>`;
 
   const dailyTotals = {};
   list.forEach(x => { const d = x.date; if (d) dailyTotals[d] = (dailyTotals[d] || 0) + Number(x.amount || 0); });
@@ -2981,9 +2784,9 @@ function renderBenefitsTab() {
   });
 }
 
-function openBenefitModal() { const v = getActiveVehicle(); if (!v) return; document.getElementById('bDate').value = new Date().toISOString().slice(0, 10); document.getElementById('bAmount').value = ''; document.getElementById('benefitModal').classList.remove('hidden'); }
-document.getElementById('benefitForm')?.addEventListener('submit', e => { e.preventDefault(); const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = []; v.benefits.push({ date: document.getElementById('bDate').value, amount: parseFloat(document.getElementById('bAmount').value) }); saveDB(true); closeModal('benefitModal'); refreshAllViews(); showToast(t("benefitSaved"), 'success'); });
-async function deleteBenefit(idx) { if (!await showConfirmDialog(t("confirmDelBenefit"))) return; const v = getActiveVehicle(); v.benefits.splice(idx, 1); saveDB(true); refreshAllViews(); showToast(t("benefitDeleted"), 'info'); }
+function openBenefitModal() { if (isReadOnlyMode()) return; const v = getActiveVehicle(); if (!v) return; document.getElementById('bDate').value = new Date().toISOString().slice(0, 10); document.getElementById('bAmount').value = ''; document.getElementById('benefitModal').classList.remove('hidden'); }
+document.getElementById('benefitForm')?.addEventListener('submit', e => { e.preventDefault(); if (isReadOnlyMode()) return; const v = getActiveVehicle(); if (!v) return; if (!Array.isArray(v.benefits)) v.benefits = []; v.benefits.push({ date: document.getElementById('bDate').value, amount: parseFloat(document.getElementById('bAmount').value) }); saveDB(true); closeModal('benefitModal'); refreshAllViews(); showToast(t("benefitSaved"), 'success'); });
+async function deleteBenefit(idx) { if (isReadOnlyMode()) return; if (!await showConfirmDialog(t("confirmDelBenefit"))) return; const v = getActiveVehicle(); v.benefits.splice(idx, 1); saveDB(true); refreshAllViews(); showToast(t("benefitDeleted"), 'info'); }
 
 function switchTab(tabName) {
   document.querySelectorAll(".tab-btn").forEach(b => {
@@ -3018,7 +2821,8 @@ function setSyncStatusBadge(state) {
   const badge = document.getElementById("oneDriveHeaderStatus");
   if (!badge) return;
   badge.dataset.state = state;
-  if (state === "saving") badge.textContent = t("saving");
+  if (!currentUser || state === "demo") badge.textContent = t("demoModeBadge");
+  else if (state === "saving") badge.textContent = t("saving");
   else if (state === "error") badge.textContent = t("saveErr");
   else badge.textContent = t("savedOk");
 }
@@ -3080,16 +2884,12 @@ async function autoTrackLogout() {
   supabaseUser = null; currentUser = null; cloudFilePath = null; activeVehicleId = null;
   sessionStorage.removeItem(SESSION_KEY);
   closeModal("profileModal");
-  document.getElementById("appView")?.classList.add("hidden");
-  document.getElementById("authWrapper")?.classList.remove("hidden");
-  applyLanguageToDOM();
+  initDemoGuestMode();
 }
 async function handleSupabaseSession(session) {
   if (!session?.user) {
     supabaseUser = null; currentUser = null; cloudFilePath = null;
-    document.getElementById("appView")?.classList.add("hidden");
-    document.getElementById("authWrapper")?.classList.remove("hidden");
-    applyLanguageToDOM();
+    initDemoGuestMode();
     return;
   }
   supabaseUser = session.user;
@@ -3101,6 +2901,7 @@ async function handleSupabaseSession(session) {
       if (!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Invalid data.");
       db = remote;
       if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+      ensureDemoVehiclePresent();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     }
   } catch (e) {
@@ -3138,14 +2939,22 @@ async function handleSupabaseSession(session) {
 window.autoTrackGoogleLogin = autoTrackGoogleLogin;
 
 (async function autoTrackSupabaseBoot(){
-  applyLanguageToDOM();
+  initDemoGuestMode();
   try {
     const lib = window.supabase;
     if (!lib?.createClient) return;
     supabaseClient = lib.createClient(AUTOTRACK_SUPABASE_URL, AUTOTRACK_SUPABASE_KEY);
     const { data } = await supabaseClient.auth.getSession();
-    await handleSupabaseSession(data?.session);
-    supabaseClient.auth.onAuthStateChange((_event, session) => { setTimeout(() => handleSupabaseSession(session), 0); });
+    if (data?.session?.user) {
+      await handleSupabaseSession(data.session);
+    }
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setTimeout(() => handleSupabaseSession(session), 0);
+      } else if (currentUser) {
+        setTimeout(() => handleSupabaseSession(null), 0);
+      }
+    });
   } catch (e) {
     console.error("AutoTrack initialization", e);
   }
@@ -3163,10 +2972,18 @@ function getUserInitials(user) {
 }
 
 function updateHeaderProfileUI() {
-  if (!currentUser) return;
   const avatarImg = document.getElementById("headerProfileAvatar");
   const initialsEl = document.getElementById("headerProfileInitials");
   const shortNameEl = document.getElementById("headerProfileShortName");
+  if (!currentUser) {
+    avatarImg?.classList.add("hidden");
+    if (initialsEl) {
+      initialsEl.textContent = "G";
+      initialsEl.classList.remove("hidden");
+    }
+    if (shortNameEl) shortNameEl.textContent = "Connexion Google";
+    return;
+  }
   const initials = getUserInitials(currentUser);
 
   if (shortNameEl) {
