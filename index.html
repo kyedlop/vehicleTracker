@@ -1404,22 +1404,40 @@ function logout() {
 }
 
 function initAppAfterLogin() {
-  document.getElementById("authWrapper").classList.add("hidden");
-  document.getElementById("appView").classList.remove("hidden");
-  document.getElementById("currentUserBadge").textContent = "👤 " + currentUser.displayName;
+  document.getElementById("authWrapper")?.classList.add("hidden");
+  document.getElementById("appView")?.classList.remove("hidden");
+  const userBadge = document.getElementById("currentUserBadge");
+  if (userBadge) userBadge.textContent = "👤 " + (currentUser?.displayName || "Utilisateur");
 
-  const userVehicles = db.vehicles.filter(v => v.ownerId === currentUser.id);
-  if (userVehicles.length > 0) {
-    activeVehicleId = userVehicles[0].id;
-  } else if (db.vehicles.length > 0) {
-    activeVehicleId = db.vehicles[0].id;
-  } else {
-    activeVehicleId = null;
-  }
+  // Normaliser les données reçues du cloud avant de construire l'interface.
+  if (!db || typeof db !== "object") db = { users: [], vehicles: [] };
+  if (!Array.isArray(db.vehicles)) db.vehicles = [];
+  if (!Array.isArray(db.users)) db.users = [];
+  db.vehicles.forEach(v => { if (v && currentUser) v.ownerId = currentUser.id; });
 
+  const userVehicles = db.vehicles.filter(v => v && v.ownerId === currentUser?.id);
+  activeVehicleId = (userVehicles[0] || db.vehicles.find(Boolean) || {}).id || null;
+
+  // Le sélecteur est rempli après affichage de l'application pour éviter
+  // qu'un rendu antérieur à la connexion ne laisse le menu vide.
   populateVehicleSelector();
   populateUserSelects();
-  refreshAllViews();
+
+  // Chaque vue est rendue explicitement. Une erreur dans un graphique ou
+  // un autre panneau ne doit pas empêcher l'affichage de l'accueil.
+  try { refreshAllViews(); } catch (e) { console.error("AutoTrack refreshAllViews", e); }
+  try { renderQuickAccess(); } catch (e) { console.error("AutoTrack renderQuickAccess", e); }
+  try { renderVehiclesTab(); } catch (e) { console.error("AutoTrack renderVehiclesTab", e); }
+
+  // Réappliquer le sélecteur au prochain cycle d'affichage et vérifier
+  // que sa valeur correspond bien au véhicule actif.
+  requestAnimationFrame(() => {
+    populateVehicleSelector();
+    const sel = document.getElementById("vehicleSelect");
+    if (sel && db.vehicles.length && !sel.options.length) {
+      console.error("AutoTrack : le sélecteur n'a pas reçu ses options", db.vehicles);
+    }
+  });
   tryAutoConnectGoogleDrive();
 }
 
@@ -1431,25 +1449,29 @@ function getActiveVehicle() {
 function populateVehicleSelector() {
   const sel = document.getElementById("vehicleSelect");
   if (!sel) return;
-  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles : [];
+  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
+  sel.replaceChildren();
   if (vehicles.length === 0) {
-    sel.innerHTML = `<option value="">Aucun véhicule</option>`;
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Aucun véhicule";
+    sel.appendChild(option);
     sel.value = "";
+    activeVehicleId = null;
     return;
   }
-  // Reconstruire les options explicitement puis réappliquer la sélection active.
-  sel.innerHTML = vehicles.map(v => {
-    const id = String(v.id ?? "");
-    const label = String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule sans nom");
-    return `<option value="${id.replace(/&/g, "&amp;").replace(/\"/g, "&quot;")}">🚘 ${label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</option>`;
-  }).join("");
+  vehicles.forEach(v => {
+    const option = document.createElement("option");
+    option.value = String(v.id ?? "");
+    option.textContent = "🚘 " + String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule sans nom");
+    sel.appendChild(option);
+  });
   const activeId = String(activeVehicleId ?? "");
   sel.value = vehicles.some(v => String(v.id ?? "") === activeId)
     ? activeId
     : String(vehicles[0].id ?? "");
-  if (!activeId || !vehicles.some(v => String(v.id ?? "") === activeId)) {
-    activeVehicleId = sel.value || null;
-  }
+  activeVehicleId = sel.value || null;
+  sel.disabled = false;
 }
 
 document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
