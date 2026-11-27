@@ -2935,6 +2935,82 @@ async function autoTrackLogout() {
  closeModal("profileModal");
  initDemoGuestMode();
 }
+async function tryDownloadCloudJson(userId, email) {
+ const cleanId = String(userId || "").trim();
+ const emailFile = getCloudFileName(email);
+ const candidatePaths = [
+ cleanId ? `${cleanId}/${emailFile}` : null,
+ cleanId ? `${cleanId}/kr15m33r4.json` : null,
+ cleanId ? `${cleanId}/autotrack_data.json` : null,
+ cleanId ? `${cleanId}/data.json` : null,
+ `kr15m33r4.json`
+ ].filter(Boolean);
+
+ // Also inspect folder contents in Supabase Storage to catch any custom .json filename
+ if (cleanId) {
+ try {
+ const { data: entries, error: listErr } = await supabaseClient.storage
+ .from(AUTOTRACK_BUCKET)
+ .list(cleanId, { limit: 50 });
+ if (!listErr && Array.isArray(entries)) {
+ entries.forEach(entry => {
+ if (entry && typeof entry.name === "string" && entry.name.toLowerCase().endsWith(".json")) {
+ const fullPath = `${cleanId}/${entry.name}`;
+ if (!candidatePaths.includes(fullPath)) candidatePaths.push(fullPath);
+ }
+ });
+ }
+ } catch (listEx) {
+ console.warn("AutoTrack storage list fallback", listEx);
+ }
+ }
+
+ for (const p of candidatePaths) {
+ try {
+ const { data, error } = await supabaseClient.storage.from(AUTOTRACK_BUCKET).download(p);
+ if (!error && data) {
+ const txt = await data.text();
+ const parsed = JSON.parse(txt);
+ if (parsed && typeof parsed === "object") {
+ return { payload: parsed, path: p };
+ }
+ }
+ } catch (err) {
+ console.warn("AutoTrack cloud candidate failed", p, err);
+ }
+ }
+ return null;
+}
+
+function ingestCloudPayloadForUser(payload, userId) {
+ if (!payload || typeof payload !== "object") return;
+ if (!db || typeof db !== "object") {
+ db = { users: [], vehicles: [], defaultVehicleByUser: {}, defaultCurrency: "EUR", defaultLanguage: "FR" };
+ }
+ if (!Array.isArray(db.vehicles)) db.vehicles = [];
+ if (!Array.isArray(db.users)) db.users = [];
+ if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+
+ if (payload.defaultLanguage) db.defaultLanguage = normalizeLangCode(payload.defaultLanguage);
+ if (payload.defaultCurrency) db.defaultCurrency = String(payload.defaultCurrency).toUpperCase();
+ if (payload.lastUpdated) db.lastUpdated = payload.lastUpdated;
+
+ if (Array.isArray(payload.vehicles) && payload.vehicles.length > 0) {
+ mergeUserVehiclesFromPayload(payload, userId);
+ const demoFromCloud = extractDemoVehicleFromPayload(payload);
+ if (demoFromCloud) {
+ const dIdx = db.vehicles.findIndex(v => v && (v.id === "v_demo" || v.id === "v_kimberly" || v.isDemo === true));
+ if (dIdx === -1) db.vehicles.unshift(demoFromCloud);
+ else db.vehicles[dIdx] = demoFromCloud;
+ }
+ } else if (payload.id || payload.brand || payload.model || Array.isArray(payload.fuelLogs) || Array.isArray(payload.expenses)) {
+ // Support payload directly structured as a single vehicle object
+ mergeUserVehiclesFromPayload({ vehicles: [payload] }, userId);
+ }
+
+ ensureDemoVehiclePresent();
+}
+
 async function handleSupabaseSession(session) {
  if (!session?.user) {
  supabaseUser = null; currentUser = null; cloudFilePath = null;
@@ -2943,15 +3019,11 @@ async function handleSupabaseSession(session) {
  }
  supabaseUser = session.user;
  cloudFilePath = supabaseUser.id + "/" + getCloudFileName(supabaseUser.email);
+ let downloadedCloud = null;
  try {
- const { data, error } = await supabaseClient.storage.from(AUTOTRACK_BUCKET).download(cloudFilePath);
- if (!error && data) {
- const remote = JSON.parse(await data.text());
- if (!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Invalid data.");
- db = remote;
- if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
- ensureDemoVehiclePresent();
- localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+ downloadedCloud = await tryDownloadCloudJson(supabaseUser.id, supabaseUser.email);
+ if (downloadedCloud?.path) {
+ cloudFilePath = downloadedCloud.path;
  }
  } catch (e) {
  console.error("AutoTrack cloud load", e);
@@ -2978,6 +3050,12 @@ async function handleSupabaseSession(session) {
  licenseNumber: existingStoredUser?.licenseNumber || "",
  language: normalizeLangCode(existingStoredUser?.language || db.defaultLanguage || "FR")
  };
+ if (downloadedCloud?.payload) {
+ ingestCloudPayloadForUser(downloadedCloud.payload, currentUser.id);
+ if (downloadedCloud.payload.defaultVehicleByUser && downloadedCloud.payload.defaultVehicleByUser[currentUser.id]) {
+ setPreferredVehicleId(currentUser.id, downloadedCloud.payload.defaultVehicleByUser[currentUser.id]);
+ }
+ }
  db.defaultLanguage = currentUser.language;
  db.users = [currentUser];
  updateHeaderProfileUI();
@@ -2985,7 +3063,11 @@ async function handleSupabaseSession(session) {
  if (typeof loadSampleDemoData === "function") {
  await loadSampleDemoData(true);
  }
+ if (downloadedCloud?.payload) {
+ ingestCloudPayloadForUser(downloadedCloud.payload, currentUser.id);
+ }
  activeVehicleId = resolveDefaultVehicleId(currentUser.id);
+ setSyncStatusBadge("ok");
  initAppAfterLogin();
 }
 window.autoTrackGoogleLogin = autoTrackGoogleLogin;
