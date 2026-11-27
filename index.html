@@ -2842,8 +2842,8 @@ async function handleSupabaseSession(session) {
     } else if(error) throw error;
   } catch(e) { showToast("Chargement Supabase impossible : "+(e.message||e),"error"); }
   currentUser={id:supabaseUser.id,username:supabaseUser.email||"google",displayName:supabaseUser.user_metadata?.full_name||supabaseUser.email||"Utilisateur"};
-  // Conserver les owners existants; rattacher les éléments sans owner à ce compte lors de la migration.
-  db.users=[currentUser]; db.vehicles.forEach(v=>{if(!v.ownerId)v.ownerId=currentUser.id;});
+  // Après migration, rattacher les véhicules importés au compte Google/Supabase connecté.
+  db.users=[currentUser]; db.vehicles.forEach(v=>{v.ownerId=currentUser.id;});
   localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
   activeVehicleId=db.vehicles[0]?.id||null;
   document.getElementById("authWrapper")?.classList.add("hidden");
