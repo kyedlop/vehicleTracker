@@ -1325,12 +1325,14 @@ function initAppAfterLogin() {
  try { renderQuickAccess(); } catch (e) { console.error("AutoTrack renderQuickAccess", e); }
  try { renderVehiclesTab(); } catch (e) { console.error("AutoTrack renderVehiclesTab", e); }
 
+ const hasUserVehicle = Array.isArray(db.vehicles) &&
+ db.vehicles.some(v => v && v.isDemo !== true && v.ownerId === currentUser?.id);
  let shouldOpenCreate = false;
  try {
  shouldOpenCreate = sessionStorage.getItem(PENDING_CREATE_VEHICLE_KEY) === "1";
  if (shouldOpenCreate) sessionStorage.removeItem(PENDING_CREATE_VEHICLE_KEY);
  } catch {}
- if (shouldOpenCreate && currentUser) {
+ if (shouldOpenCreate && currentUser && !hasUserVehicle) {
  openVehicleModal("");
  }
 }
@@ -2980,6 +2982,9 @@ async function handleSupabaseSession(session) {
  db.users = [currentUser];
  updateHeaderProfileUI();
  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+ if (typeof loadSampleDemoData === "function") {
+ await loadSampleDemoData(true);
+ }
  activeVehicleId = resolveDefaultVehicleId(currentUser.id);
  initAppAfterLogin();
 }
@@ -2988,6 +2993,90 @@ window.autoTrackGoogleLogin = autoTrackGoogleLogin;
 
 const SAMPLE_JSON_URL = "sample.json";
 let sampleDataPromise = null;
+
+function mergeUserVehiclesFromPayload(payload, userId) {
+ if (!payload || typeof payload !== "object" || !userId) return;
+ const rawVehicles = Array.isArray(payload.vehicles) ? payload.vehicles : [];
+ const userCandidates = rawVehicles.filter(v =>
+ v &&
+ v.isDemo !== true &&
+ v.id !== "v_demo" &&
+ (!v.ownerId || String(v.ownerId) === String(userId))
+ );
+ if (!userCandidates.length) return;
+
+ if (!Array.isArray(db.vehicles)) db.vehicles = [];
+ if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") {
+ db.defaultVehicleByUser = {};
+ }
+
+ let firstImportedId = null;
+
+ userCandidates.forEach((cand, idx) => {
+ const fuelLogs = Array.isArray(cand.fuelLogs) ? cand.fuelLogs : [];
+ const expenses = Array.isArray(cand.expenses) ? cand.expenses : [];
+ const benefits = Array.isArray(cand.benefits) ? cand.benefits : [];
+ const vehId = cand.id || `v_imported_${userId}_${idx}`;
+ if (!firstImportedId) firstImportedId = vehId;
+
+ const normalizedVeh = {
+ ...cand,
+ id: vehId,
+ ownerId: userId,
+ isDemo: false,
+ isUserCreated: true,
+ currency: cand.currency || payload.defaultCurrency || db.defaultCurrency || "EUR",
+ fuelLogs,
+ expenses,
+ benefits
+ };
+
+ const existingIdx = db.vehicles.findIndex(v =>
+ v &&
+ v.isDemo !== true &&
+ v.id !== "v_demo" &&
+ (
+ (cand.id && String(v.id) === String(cand.id)) ||
+ (cand.registration && v.registration && String(v.registration).toUpperCase() === String(cand.registration).toUpperCase()) ||
+ (
+ String(v.name || "").trim().toLowerCase() === String(cand.name || "").trim().toLowerCase() &&
+ String(v.brand || "").trim().toLowerCase() === String(cand.brand || "").trim().toLowerCase() &&
+ String(v.model || "").trim().toLowerCase() === String(cand.model || "").trim().toLowerCase()
+ )
+ )
+ );
+
+ if (existingIdx === -1) {
+ db.vehicles.push(normalizedVeh);
+ } else {
+ const existing = db.vehicles[existingIdx];
+ const existingFuelCount = Array.isArray(existing.fuelLogs) ? existing.fuelLogs.length : 0;
+ const existingExpCount = Array.isArray(existing.expenses) ? existing.expenses.length : 0;
+ const existingBenCount = Array.isArray(existing.benefits) ? existing.benefits.length : 0;
+ const hasRichExisting = (existingFuelCount + existingExpCount + existingBenCount) > (fuelLogs.length + expenses.length + benefits.length);
+ db.vehicles[existingIdx] = hasRichExisting
+ ? {
+ ...normalizedVeh,
+ ...existing,
+ id: existing.id || normalizedVeh.id,
+ ownerId: userId,
+ isDemo: false,
+ isUserCreated: true,
+ fuelLogs: existingFuelCount > 0 ? existing.fuelLogs : fuelLogs,
+ expenses: existingExpCount > 0 ? existing.expenses : expenses,
+ benefits: existingBenCount > 0 ? existing.benefits : benefits
+ }
+ : normalizedVeh;
+ }
+ });
+
+ const preferredFromPayload =
+ (payload.defaultVehicleByUser && payload.defaultVehicleByUser[userId]) ||
+ firstImportedId;
+ if (preferredFromPayload) {
+ setPreferredVehicleId(userId, preferredFromPayload);
+ }
+}
 
 function extractDemoVehicleFromPayload(payload) {
  if (!payload || typeof payload !== "object") return null;
@@ -3064,7 +3153,10 @@ async function loadSampleDemoData(forceReload = false) {
  applyLanguageToDOM();
  refreshAllViews();
  } else {
+ mergeUserVehiclesFromPayload(parsed, currentUser.id);
+ activeVehicleId = resolveDefaultVehicleId(currentUser.id);
  populateVehicleSelector();
+ applyLanguageToDOM();
  refreshAllViews();
  }
  return demoVeh;
