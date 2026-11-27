@@ -517,10 +517,13 @@ const DEFAULT_DB = {
   version: 2,
   lastUpdated: "2026-11-21T19:00:00Z",
   users: [],
+  defaultVehicleByUser: {},
   vehicles: [
     {
       id: "v_kimberly",
       ownerId: null,
+      isDemo: true,
+      isUserCreated: false,
       name: "Kimberly",
       brand: "Toyota",
       model: "Auris 2",
@@ -707,6 +710,7 @@ const DEFAULT_DB = {
 
 const STORAGE_KEY = "autotrack_db_v2";
 const SESSION_KEY = "autotrack_session_v2";
+const DEFAULT_VEHICLE_PREFIX = "autotrack_default_vehicle_";
 
 let db = loadDB();
 let currentUser = null;
@@ -719,6 +723,9 @@ function loadDB() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.vehicles) && Array.isArray(parsed.users)) {
+        if (!parsed.defaultVehicleByUser || typeof parsed.defaultVehicleByUser !== "object") {
+          parsed.defaultVehicleByUser = {};
+        }
         return parsed;
       }
     }
@@ -734,6 +741,55 @@ function saveDB(markDirty = true) {
     document.getElementById("unsavedBanner")?.classList.remove("hidden");
     scheduleSupabaseSave();
   }
+}
+
+function getPreferredVehicleId(userId) {
+  if (!userId) return null;
+  if (db?.defaultVehicleByUser && db.defaultVehicleByUser[userId]) {
+    return db.defaultVehicleByUser[userId];
+  }
+  try {
+    return localStorage.getItem(DEFAULT_VEHICLE_PREFIX + userId) || null;
+  } catch {
+    return null;
+  }
+}
+
+function setPreferredVehicleId(userId, vehicleId) {
+  if (!userId || !vehicleId) return;
+  if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") {
+    db.defaultVehicleByUser = {};
+  }
+  db.defaultVehicleByUser[userId] = vehicleId;
+  try {
+    localStorage.setItem(DEFAULT_VEHICLE_PREFIX + userId, vehicleId);
+  } catch (e) {
+    console.warn("Impossible d'enregistrer le véhicule par défaut en localStorage", e);
+  }
+}
+
+function resolveDefaultVehicleId(userId) {
+  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles.filter(Boolean) : [];
+  if (!vehicles.length) return null;
+
+  const userVehicles = vehicles.filter(v => !userId || v.ownerId === userId);
+  const pool = userVehicles.length ? userVehicles : vehicles;
+
+  const customVehicles = pool.filter(v => v.isUserCreated === true || v.isDemo === false);
+  const preferredId = getPreferredVehicleId(userId);
+
+  if (preferredId) {
+    const preferredMatch = customVehicles.find(v => String(v.id) === String(preferredId))
+      || pool.find(v => String(v.id) === String(preferredId) && v.isDemo !== true);
+    if (preferredMatch) return preferredMatch.id;
+  }
+
+  if (customVehicles.length > 0) {
+    const latestCustom = [...customVehicles].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+    return latestCustom.id;
+  }
+
+  return pool[0].id;
 }
 
 
@@ -870,6 +926,7 @@ async function linkLocalGoogleDriveFile() {
         if (remoteTime > localTime) {
           db.vehicles = remoteData.vehicles;
           if (Array.isArray(remoteData.users)) db.users = remoteData.users;
+          if (remoteData.defaultVehicleByUser) db.defaultVehicleByUser = remoteData.defaultVehicleByUser;
           db.lastUpdated = remoteData.lastUpdated;
           localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
           populateVehicleSelector();
@@ -1042,6 +1099,7 @@ async function syncWithGoogleDriveCloud(pullFirst = false, forceRemote = false) 
         if (currentUser) {
           const refreshedUser = db.users.find(u => u.id === currentUser.id);
           if (refreshedUser) currentUser = refreshedUser;
+          activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
         }
         populateVehicleSelector();
         populateUserSelects();
@@ -1291,8 +1349,12 @@ function logout() {
   }
 
   const preservedUsers = Array.isArray(db.users) ? db.users : [];
+  const preservedDefaultMap = (db.defaultVehicleByUser && typeof db.defaultVehicleByUser === "object")
+    ? db.defaultVehicleByUser
+    : {};
   db = {
     users: preservedUsers,
+    defaultVehicleByUser: preservedDefaultMap,
     vehicles: [],
     lastUpdated: null
   };
@@ -1319,13 +1381,18 @@ function initAppAfterLogin() {
   if (userBadge) userBadge.textContent = "👤 " + (currentUser?.displayName || "Utilisateur");
 
   // Normaliser les données reçues du cloud avant de construire l'interface.
-  if (!db || typeof db !== "object") db = { users: [], vehicles: [] };
+  if (!db || typeof db !== "object") db = { users: [], vehicles: [], defaultVehicleByUser: {} };
   if (!Array.isArray(db.vehicles)) db.vehicles = [];
   if (!Array.isArray(db.users)) db.users = [];
-  db.vehicles.forEach(v => { if (v && currentUser) v.ownerId = currentUser.id; });
+  if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
+  db.vehicles.forEach(v => {
+    if (!v) return;
+    if (currentUser) v.ownerId = currentUser.id;
+    if (v.isUserCreated === undefined) v.isUserCreated = v.id !== "v_kimberly";
+    if (v.isDemo === undefined) v.isDemo = !v.isUserCreated;
+  });
 
-  const userVehicles = db.vehicles.filter(v => v && v.ownerId === currentUser?.id);
-  activeVehicleId = (userVehicles[0] || db.vehicles.find(Boolean) || {}).id || null;
+  activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
 
   // Le sélecteur est rempli après affichage de l'application pour éviter
   // qu'un rendu antérieur à la connexion ne laisse le menu vide.
@@ -1385,6 +1452,10 @@ function populateVehicleSelector() {
 
 document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
   activeVehicleId = e.target.value;
+  if (currentUser?.id && activeVehicleId) {
+    setPreferredVehicleId(currentUser.id, activeVehicleId);
+    saveDB(true);
+  }
   refreshAllViews();
 });
 
@@ -2391,6 +2462,10 @@ function renderVehiclesTab() {
 
 function selectVehicleFromCard(id) {
   activeVehicleId = id;
+  if (currentUser?.id && activeVehicleId) {
+    setPreferredVehicleId(currentUser.id, activeVehicleId);
+    saveDB(true);
+  }
   populateVehicleSelector();
   refreshAllViews();
   switchTab("quick");
@@ -2457,12 +2532,18 @@ document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
 
   if (editId) {
     const v = db.vehicles.find(x => x.id === editId);
-    Object.assign(v, payload);
+    Object.assign(v, payload, { isDemo: false, isUserCreated: true });
+    if (currentUser?.id) {
+      setPreferredVehicleId(currentUser.id, v.id);
+    }
   } else {
     const newId = "v_" + Date.now();
     db.vehicles.push({
       id: newId,
       ...payload,
+      isDemo: false,
+      isUserCreated: true,
+      createdAt: Date.now(),
       depreciationFixedPerDay: 2.97126,
       depreciationPerKmDay: 0.090022,
       fuelLogs: [{
@@ -2477,6 +2558,9 @@ document.getElementById("vehicleForm")?.addEventListener("submit", (e) => {
       expenses: []
     });
     activeVehicleId = newId;
+    if (currentUser?.id) {
+      setPreferredVehicleId(currentUser.id, newId);
+    }
   }
   saveDB(true);
   closeModal("vehicleModal");
@@ -2489,7 +2573,11 @@ async function deleteVehicle(id) {
   const ok = await showConfirmDialog("Voulez-vous vraiment supprimer ce véhicule et tout son historique ?");
   if (!ok) return;
   db.vehicles = db.vehicles.filter(v => v.id !== id);
-  activeVehicleId = db.vehicles[0]?.id || null;
+  if (currentUser?.id && getPreferredVehicleId(currentUser.id) === id) {
+    delete db.defaultVehicleByUser[currentUser.id];
+    try { localStorage.removeItem(DEFAULT_VEHICLE_PREFIX + currentUser.id); } catch {}
+  }
+  activeVehicleId = resolveDefaultVehicleId(currentUser?.id);
   saveDB(true);
   populateVehicleSelector();
   refreshAllViews();
@@ -2527,8 +2615,12 @@ function handleJSONImport(file) {
       if (parsed.users && Array.isArray(parsed.users)) {
         db.users = parsed.users;
       }
+      if (parsed.defaultVehicleByUser && typeof parsed.defaultVehicleByUser === "object") {
+        db.defaultVehicleByUser = parsed.defaultVehicleByUser;
+      }
       saveDB(false);
       if (currentUser) {
+        activeVehicleId = resolveDefaultVehicleId(currentUser.id);
         populateVehicleSelector();
         populateUserSelects();
         refreshAllViews();
@@ -2810,7 +2902,11 @@ async function handleSupabaseSession(session) {
     if(!error && data) {
       const remote=JSON.parse(await data.text());
       if(!remote || !Array.isArray(remote.users) || !Array.isArray(remote.vehicles)) throw new Error("Fichier cloud invalide. Import interrompu.");
-      db=remote; localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+      db=remote;
+      if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") {
+        db.defaultVehicleByUser = {};
+      }
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
     } else if (error && (error.statusCode === "404" || error.status === 404 || error.message?.toLowerCase().includes("not found"))) {
       // Première connexion : récupérer le jeu de démonstration partagé.
       const sampleResult = await supabaseClient.storage.from(AUTOTRACK_BUCKET).download("samples/sample.json");
@@ -2818,7 +2914,13 @@ async function handleSupabaseSession(session) {
       const sampleData = JSON.parse(await sampleResult.data.text());
       if (!sampleData || !Array.isArray(sampleData.vehicles) || !sampleData.vehicles.length) throw new Error("Le fichier sample.json ne contient aucun véhicule de démonstration valide.");
       db = sampleData;
+      db.vehicles = db.vehicles.map(v => ({
+        ...v,
+        isDemo: v?.isUserCreated === true ? false : true,
+        isUserCreated: v?.isUserCreated === true
+      }));
       if (!Array.isArray(db.users)) db.users = [];
+      if (!db.defaultVehicleByUser || typeof db.defaultVehicleByUser !== "object") db.defaultVehicleByUser = {};
       createFromSample = true;
     } else if(error) throw error;
   } catch(e) {
@@ -2830,9 +2932,14 @@ async function handleSupabaseSession(session) {
   // Les véhicules du fichier personnel ou du modèle de démonstration appartiennent
   // désormais au compte connecté. L'ID d'exemple est propre à chaque espace.
   db.users=[currentUser];
-  db.vehicles.forEach(v=>{ if(v) v.ownerId=currentUser.id; });
+  db.vehicles.forEach(v=>{
+    if(!v) return;
+    v.ownerId=currentUser.id;
+    if (v.isUserCreated === undefined) v.isUserCreated = v.id !== "v_kimberly";
+    if (v.isDemo === undefined) v.isDemo = !v.isUserCreated;
+  });
   localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
-  activeVehicleId=db.vehicles[0]?.id||null;
+  activeVehicleId = resolveDefaultVehicleId(currentUser.id);
   if (createFromSample) {
     const stamp = new Date().toISOString();
     db.lastUpdated = stamp;
