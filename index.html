@@ -112,7 +112,7 @@
     <main class="max-w-7xl mx-auto px-4 py-5">
       <!-- Bandeau mode démo / lecture seule -->
       <div id="demoReadOnlyBanner" class="mb-5 p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
-        <span>👁️ <strong>Mode démonstration (visu uniquement)</strong> : consultez le véhicule Démo. Connectez-vous avec Google pour créer votre véhicule.</span>
+        <span>👁️ <strong>Mode démonstration (visu uniquement)</strong> : consultez le véhicule Démo. Connectez-vous avec Google pour créer votre propre véhicule.</span>
         <button type="button" onclick="openVehicleModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer">
           Se connecter & créer un véhicule
         </button>
@@ -1407,7 +1407,7 @@ function computeVehicleMetrics(v) {
   const maxExpOdo = sortedExp.length ? Math.max(...sortedExp.map(e => Number(e.odometer) || 0)) : v.initialOdometer;
   const currentOdometer = Math.max(Number(v.initialOdometer) || 0, maxFuelOdo, maxExpOdo);
   const totalKmDriven = Math.max(0, currentOdometer - (Number(v.initialOdometer) || 0));
-  const calcDenominatorKm = Math.max(1, totalKmDriven);
+  const calcDenominatorKm = totalKmDriven > 0 ? totalKmDriven : null;
 
   const purchaseDt = new Date(v.purchaseDate);
   const today = new Date();
@@ -1427,13 +1427,13 @@ function computeVehicleMetrics(v) {
 
   const runningAndDepCost = totalFuelCost + totalExpenses + totalDepreciation;
   const costPerDay = runningAndDepCost / daysOwned;
-  const costPerKm = runningAndDepCost / calcDenominatorKm;
+  const costPerKm = calcDenominatorKm ? runningAndDepCost / calcDenominatorKm : 0;
   const purchaseCostPerDay = v.purchasePrice / daysOwned;
-  const purchaseCostPerKm = v.purchasePrice / calcDenominatorKm;
+  const purchaseCostPerKm = calcDenominatorKm ? v.purchasePrice / calcDenominatorKm : 0;
   const totalCostPerDay = costPerDay + purchaseCostPerDay;
   const totalCostPerKm = costPerKm + purchaseCostPerKm;
   const totalCostPerMonth = totalCostPerDay * 30;
-  const fuelCostPerKm = totalFuelCost / calcDenominatorKm;
+  const fuelCostPerKm = calcDenominatorKm ? totalFuelCost / calcDenominatorKm : 0;
 
   const avgConso100 = validConsoList.length
     ? validConsoList.reduce((s, x) => s + x.conso100, 0) / validConsoList.length
@@ -2438,7 +2438,7 @@ function renderQuickAccess() {
     <div class="rounded-lg border border-amber-200 bg-amber-50 p-2">⏱️ Possession : <strong>${m.yearsOwned} an(s) et ${m.remDays} jr</strong></div>
     <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2">💎 Valeur estimée : <strong>${fmtEur(m.currentValue, 2, v)}</strong></div>
     <div class="rounded-lg border border-cyan-200 bg-cyan-50 p-2">⛽ Consommation : <strong>${fmtNum(m.avgConso100,2)} ${consoUnit} • ${fmtEur(m.fuelCostPerKm,2,v)} / km</strong></div>
-    <div class="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div></div>`;
+    <div class="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerMonth,2,v)} / mois • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div></div>`;
 
   if (oilCard) {
     const remaining = Math.max(0, m.targetOilChangeOdo - m.currentOdometer);
@@ -2716,7 +2716,7 @@ function renderVehiclesTab() {
           <div class="rounded-lg border border-sky-200 bg-sky-50 p-2">Compteur : <strong>${fmtNum(m.currentOdometer, 0)} km</strong></div>
           <div class="rounded-lg border border-violet-200 bg-violet-50 p-2">Conso moy. : <strong>${fmtNum(m.avgConso100, 2)} ${consoUnit}</strong></div>
           <div class="col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 p-2">Coût énergie / km : <strong class="text-slate-900">${fmtEur(m.fuelCostPerKm, 2, v)} / km</strong></div>
-          <div class="col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div>
+          <div class="col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-2">💶 Coût d'utilisation : <strong>${fmtEur(m.totalCostPerDay,2,v)} / jour • ${fmtEur(m.totalCostPerMonth,2,v)} / mois • ${fmtEur(m.totalCostPerKm,2,v)} / km</strong></div>
         </div>
         <div class="flex gap-2 flex-wrap">
           <button type="button" onclick="selectVehicleFromCard('${v.id}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer">Afficher le suivi</button>
