@@ -15,6 +15,7 @@
   <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
+    #vehicleSelect option { color: #0f172a; background: #ffffff; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-tap-highlight-color: transparent;
@@ -1429,11 +1430,26 @@ function getActiveVehicle() {
 
 function populateVehicleSelector() {
   const sel = document.getElementById("vehicleSelect");
-  if (db.vehicles.length === 0) {
+  if (!sel) return;
+  const vehicles = Array.isArray(db?.vehicles) ? db.vehicles : [];
+  if (vehicles.length === 0) {
     sel.innerHTML = `<option value="">Aucun véhicule</option>`;
+    sel.value = "";
     return;
   }
-  sel.innerHTML = db.vehicles.map(v => `<option value="${v.id}" ${v.id === activeVehicleId ? "selected" : ""}>🚘 ${v.name}</option>`).join("");
+  // Reconstruire les options explicitement puis réappliquer la sélection active.
+  sel.innerHTML = vehicles.map(v => {
+    const id = String(v.id ?? "");
+    const label = String(v.name || `${v.brand || ""} ${v.model || ""}`.trim() || "Véhicule sans nom");
+    return `<option value="${id.replace(/&/g, "&amp;").replace(/\"/g, "&quot;")}">🚘 ${label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</option>`;
+  }).join("");
+  const activeId = String(activeVehicleId ?? "");
+  sel.value = vehicles.some(v => String(v.id ?? "") === activeId)
+    ? activeId
+    : String(vehicles[0].id ?? "");
+  if (!activeId || !vehicles.some(v => String(v.id ?? "") === activeId)) {
+    activeVehicleId = sel.value || null;
+  }
 }
 
 document.getElementById("vehicleSelect")?.addEventListener("change", (e) => {
