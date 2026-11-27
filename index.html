@@ -980,11 +980,11 @@ function getConsumptionUnit(v, overrideEnergyType = null) {
 // ==================== DONNÉES PAR DÉFAUT & VÉHICULE DÉMO ====================
 function createDemoVehicleTemplate() {
   return {
-    id: "v_kimberly",
+    id: "v_demo",
     ownerId: null,
     isDemo: true,
     isUserCreated: false,
-    name: "Kimberly (Démo)",
+    name: "Véhicule Démo",
     currency: "EUR",
     brand: "Toyota",
     model: "Auris 2",
@@ -1033,7 +1033,15 @@ let charts = {};
 
 function ensureDemoVehiclePresent() {
   if (!Array.isArray(db.vehicles)) db.vehicles = [];
-  const demoIdx = db.vehicles.findIndex(v => v && (v.id === "v_kimberly" || v.isDemo === true));
+  db.vehicles.forEach(v => {
+    if (v && (v.id === "v_kimberly" || v.id === "v_demo" || v.isDemo === true)) {
+      v.id = "v_demo";
+      if (/kimberly/i.test(String(v.name || ""))) {
+        v.name = "Véhicule Démo";
+      }
+    }
+  });
+  const demoIdx = db.vehicles.findIndex(v => v && (v.id === "v_demo" || v.isDemo === true));
   if (demoIdx === -1) {
     db.vehicles.unshift(createDemoVehicleTemplate());
   } else {
@@ -1261,7 +1269,7 @@ function initAppAfterLogin() {
   ensureDemoVehiclePresent();
   db.vehicles.forEach(v => {
     if (!v) return;
-    if (v.isDemo === true || v.id === "v_kimberly") {
+    if (v.isDemo === true || v.id === "v_demo") {
       v.isDemo = true;
       v.isUserCreated = false;
       v.ownerId = null;
@@ -1280,14 +1288,9 @@ function initAppAfterLogin() {
   try { renderQuickAccess(); } catch (e) { console.error("AutoTrack renderQuickAccess", e); }
   try { renderVehiclesTab(); } catch (e) { console.error("AutoTrack renderVehiclesTab", e); }
 
-  let shouldOpenCreate = false;
   try {
-    shouldOpenCreate = sessionStorage.getItem(PENDING_CREATE_VEHICLE_KEY) === "1";
-    if (shouldOpenCreate) sessionStorage.removeItem(PENDING_CREATE_VEHICLE_KEY);
+    sessionStorage.removeItem(PENDING_CREATE_VEHICLE_KEY);
   } catch {}
-  if (shouldOpenCreate && currentUser) {
-    openVehicleModal("");
-  }
 }
 
 function getActiveVehicle() {
